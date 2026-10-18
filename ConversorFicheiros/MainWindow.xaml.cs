@@ -1,0 +1,244 @@
+using System.IO;
+using System.Net;
+using System.Net.Sockets;
+using System.Net.NetworkInformation;
+using System.Text;
+using System.Windows;
+using System.Windows.Media.Imaging;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Win32;
+using PdfSharp.Drawing;
+using PdfSharp.Pdf.IO;
+using QRCoder;
+
+namespace ConversorFicheiros;
+
+public partial class MainWindow : Window
+{
+    private readonly ImageConversionService _converter = new();
+    private MobileSignatureServer? _server;
+
+    public MainWindow()
+    {
+        InitializeComponent();
+        var args = Environment.GetCommandLineArgs().Skip(1).ToArray();
+        if (args.Length >= 3 && args[0] == "--convert")
+        {
+            FileList.Items.Add(args[1]);
+            TargetFormat.SelectedItem = TargetFormat.Items.Cast<System.Windows.Controls.ComboBoxItem>()
+                .FirstOrDefault(item => string.Equals(item.Content?.ToString(), args[2], StringComparison.OrdinalIgnoreCase));
+            Dispatcher.BeginInvoke(async () => await ConvertFilesAsync());
+        }
+    }
+
+    private void AddFiles_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog { Title = "Selecionar ficheiros", Multiselect = true, Filter = "Todos os ficheiros|*.*" };
+        if (dialog.ShowDialog() == true) AddFiles(dialog.FileNames);
+    }
+
+    private void AddFiles(IEnumerable<string> paths)
+    {
+        foreach (var path in paths.Where(File.Exists)) if (!FileList.Items.Contains(path)) FileList.Items.Add(path);
+        StatusText.Text = $"{FileList.Items.Count} ficheiro(s) na lista";
+    }
+
+    private void DropTarget_DragOver(object sender, DragEventArgs e) => e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;
+    private void DropTarget_Drop(object sender, DragEventArgs e) { if (e.Data.GetData(DataFormats.FileDrop) is string[] paths) AddFiles(paths); }
+    private async void Convert_Click(object sender, RoutedEventArgs e) => await ConvertFilesAsync();
+
+    private async Task ConvertFilesAsync()
+    {
+        if (FileList.Items.Count == 0) { StatusText.Text = "Adicione ficheiros para converter."; return; }
+        var format = (TargetFormat.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "png";
+        ConvertButton.IsEnabled = false;
+        var successes = 0; var total = FileList.Items.Count;
+        foreach (string input in FileList.Items)
+        {
+            try { var output = await Task.Run(() => _converter.Convert(input, format)); successes++; StatusText.Text = $"Convertido: {Path.GetFileName(output)}"; }
+            catch (Exception ex) { StatusText.Text = $"Falha em {Path.GetFileName(input)}: {ex.Message}"; }
+        }
+        ConvertButton.IsEnabled = true;
+        if (successes > 0) StatusText.Text = $"Concluído: {successes} de {total} ficheiro(s).";
+    }
+
+    private void Clear_Click(object sender, RoutedEventArgs e) { FileList.Items.Clear(); StatusText.Text = "Lista limpa."; }
+
+    private void ContextMenu_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var exe = Environment.ProcessPath ?? throw new InvalidOperationException("Não foi possível localizar o executável.");
+            new ExplorerMenuService().Register(exe);
+            StatusText.Text = "Atalhos registados no Explorador do Windows.";
+        }
+        catch (Exception ex) { StatusText.Text = $"Não foi possível registar o menu: {ex.Message}"; }
+    }
+
+    private async void SignPdf_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog { Title = "Selecionar PDF", Filter = "Documentos PDF|*.pdf" };
+        if (dialog.ShowDialog() != true) return;
+        _server?.Dispose(); _server = new MobileSignatureServer();
+        try
+        {
+            var session = await _server.StartAsync();
+            QrImage.Source = ToBitmap(PngByteQRCodeHelper.GetQRCode(session.Url, QRCodeGenerator.ECCLevel.Q, 8));
+            QrPanel.Visibility = Visibility.Visible;
+            StatusText.Text = "Leia o QR code na mesma rede Wi-Fi e desenhe a assinatura no telemóvel.";
+            var png = await session.SignatureTask;
+            var output = Path.Combine(Path.GetDirectoryName(dialog.FileName)!, Path.GetFileNameWithoutExtension(dialog.FileName) + "_assinado.pdf");
+            output = await Task.Run(() => PdfSignatureService.AddVisualSignature(dialog.FileName, output, png));
+            StatusText.Text = $"PDF assinado guardado em {output}";
+        }
+        catch (Exception ex) { StatusText.Text = $"Erro na assinatura: {ex.Message}"; }
+        finally { QrPanel.Visibility = Visibility.Collapsed; _server?.Dispose(); _server = null; }
+    }
+
+    private static BitmapImage ToBitmap(byte[] bytes)
+    {
+        using var stream = new MemoryStream(bytes);
+        var bitmap = new BitmapImage(); bitmap.BeginInit(); bitmap.CacheOption = BitmapCacheOption.OnLoad; bitmap.StreamSource = stream; bitmap.EndInit(); bitmap.Freeze(); return bitmap;
+    }
+
+    protected override void OnClosed(EventArgs e) { _server?.Dispose(); base.OnClosed(e); }
+}
+
+internal sealed class ImageConversionService
+{
+    public string Convert(string input, string format)
+    {
+        if (string.Equals(format, "pdf", StringComparison.OrdinalIgnoreCase)) return ConvertToPdf(input);
+        var (encoder, extension) = format.ToLowerInvariant() switch
+        {
+            "png" => ((BitmapEncoder)new PngBitmapEncoder(), ".png"),
+            "jpg" or "jpeg" => (new JpegBitmapEncoder { QualityLevel = 92 }, ".jpg"),
+            "bmp" => (new BmpBitmapEncoder(), ".bmp"),
+            "tiff" => (new TiffBitmapEncoder(), ".tiff"),
+            _ => throw new NotSupportedException($"Formato não suportado: {format}")
+        };
+        var decoder = BitmapDecoder.Create(new Uri(input), BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+        foreach (var frame in decoder.Frames) encoder.Frames.Add(frame);
+        var directory = Path.GetDirectoryName(input)!;
+        var output = Path.Combine(directory, Path.GetFileNameWithoutExtension(input) + extension);
+        if (string.Equals(Path.GetFullPath(input), Path.GetFullPath(output), StringComparison.OrdinalIgnoreCase))
+            output = Path.Combine(directory, Path.GetFileNameWithoutExtension(input) + "_convertido" + extension);
+        output = GetAvailablePath(output);
+        using var stream = File.Create(output); encoder.Save(stream); return output;
+    }
+
+    private static string ConvertToPdf(string input)
+    {
+        var decoder = BitmapDecoder.Create(new Uri(input), BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+        var output = GetAvailablePath(Path.Combine(Path.GetDirectoryName(input)!, Path.GetFileNameWithoutExtension(input) + ".pdf"));
+        using var document = new PdfSharp.Pdf.PdfDocument();
+        foreach (var frame in decoder.Frames)
+        {
+            var pngEncoder = new PngBitmapEncoder(); pngEncoder.Frames.Add(frame);
+            using var imageStream = new MemoryStream(); pngEncoder.Save(imageStream); imageStream.Position = 0;
+            using var image = XImage.FromStream(imageStream);
+            var page = document.AddPage();
+            page.Width = XUnit.FromPoint(frame.PixelWidth * 72d / frame.DpiX);
+            page.Height = XUnit.FromPoint(frame.PixelHeight * 72d / frame.DpiY);
+            using var graphics = XGraphics.FromPdfPage(page);
+            graphics.DrawImage(image, 0, 0, page.Width.Point, page.Height.Point);
+        }
+        document.Save(output);
+        return output;
+    }
+
+    private static string GetAvailablePath(string path)
+    {
+        var candidate = path; var suffix = 2;
+        while (File.Exists(candidate)) candidate = Path.Combine(Path.GetDirectoryName(path)!, $"{Path.GetFileNameWithoutExtension(path)} ({suffix++}){Path.GetExtension(path)}");
+        return candidate;
+    }
+}
+
+internal sealed class ExplorerMenuService
+{
+    public void Register(string executable)
+    {
+        var formats = new[] { ("png", "PNG"), ("jpg", "JPEG"), ("bmp", "BMP"), ("tiff", "TIFF"), ("pdf", "PDF") };
+        var extensions = new[] { ".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff" };
+        foreach (var ext in extensions)
+        foreach (var (format, label) in formats)
+        {
+            using var key = Registry.CurrentUser.CreateSubKey($@"Software\Classes\SystemFileAssociations\{ext}\shell\ConversorFicheiros.{format}");
+            key!.SetValue(null, $"Converter para {label}"); key.SetValue("Icon", executable);
+            using var command = key.CreateSubKey("command"); command!.SetValue(null, $"\"{executable}\" --convert \"%1\" {format}");
+        }
+    }
+}
+
+internal sealed class MobileSignatureServer : IDisposable, IAsyncDisposable
+{
+    private readonly TaskCompletionSource<byte[]> _signature = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private WebApplication? _app;
+    private string _token = Guid.NewGuid().ToString("N");
+
+    public async Task<(string Url, Task<byte[]> SignatureTask)> StartAsync()
+    {
+        using var probe = new TcpListener(IPAddress.Loopback, 0); probe.Start();
+        var port = ((IPEndPoint)probe.LocalEndpoint).Port;
+        var ip = GetLocalAddress();
+        var builder = WebApplication.CreateSlimBuilder();
+        builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+        _app = builder.Build();
+        _app.MapGet($"/{_token}", () => Results.Content(MobilePage, "text/html; charset=utf-8"));
+        _app.MapPost($"/{_token}/signature", async (HttpRequest request) =>
+        {
+            if (request.ContentLength is <= 0 or > 5_000_000) return Results.StatusCode(413);
+            if (!string.Equals(request.ContentType, "image/png", StringComparison.OrdinalIgnoreCase)) return Results.BadRequest("Formato inválido.");
+            using var data = new MemoryStream(); await request.Body.CopyToAsync(data);
+            if (data.Length == 0 || data.Length > 5_000_000) return Results.StatusCode(413);
+            _signature.TrySetResult(data.ToArray());
+            return Results.Text("Assinatura recebida. Pode fechar esta página.");
+        });
+        await _app.StartAsync();
+        return ($"http://{ip}:{port}/{_token}", _signature.Task);
+    }
+
+    private static string GetLocalAddress()
+    {
+        var address = NetworkInterface.GetAllNetworkInterfaces()
+            .Where(adapter => adapter.OperationalStatus == OperationalStatus.Up && adapter.NetworkInterfaceType != NetworkInterfaceType.Loopback)
+            .SelectMany(adapter => adapter.GetIPProperties().UnicastAddresses)
+            .Select(item => item.Address)
+            .FirstOrDefault(item => item.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(item));
+        return address?.ToString() ?? IPAddress.Loopback.ToString();
+    }
+    public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
+    public async ValueTask DisposeAsync()
+    {
+        if (_app is null) return;
+        await _app.StopAsync();
+        await _app.DisposeAsync();
+        _app = null;
+    }
+
+    private const string MobilePage = """
+<!doctype html><html lang="pt"><meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="utf-8"><title>Assinar PDF</title><style>body{font:17px system-ui;max-width:620px;margin:24px auto;padding:0 16px;background:#f5f6fa;color:#172033}canvas{width:100%;height:260px;background:white;border:2px dashed #8290a6;border-radius:16px;touch-action:none}button{padding:12px 18px;border:0;border-radius:10px;background:#245de8;color:white;font-size:16px;margin:12px 8px 0 0}</style><h1>Desenhe a assinatura</h1><p>A assinatura será enviada diretamente ao computador nesta rede.</p><canvas id="pad" width="1200" height="520"></canvas><br><button onclick="clearPad()">Limpar</button><button onclick="send()">Enviar assinatura</button><p id="status"></p><script>const c=document.querySelector('#pad'),x=c.getContext('2d');x.strokeStyle='#13244a';x.lineWidth=8;x.lineCap='round';let down=false;function pos(e){let r=c.getBoundingClientRect();return[(e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height]}c.onpointerdown=e=>{down=true;c.setPointerCapture(e.pointerId);let p=pos(e);x.beginPath();x.moveTo(...p)};c.onpointermove=e=>{if(down){x.lineTo(...pos(e));x.stroke()}};c.onpointerup=()=>down=false;function clearPad(){x.clearRect(0,0,c.width,c.height)}async function send(){document.querySelector('#status').textContent='A enviar…';let blob=await new Promise(r=>c.toBlob(r,'image/png'));let res=await fetch(location.pathname+'/signature',{method:'POST',headers:{'Content-Type':'image/png'},body:blob});document.querySelector('#status').textContent=await res.text()}</script></html>
+""";
+}
+
+internal static class PdfSignatureService
+{
+    public static string AddVisualSignature(string input, string output, byte[] png)
+    {
+        using var document = PdfReader.Open(input, PdfDocumentOpenMode.Modify);
+        if (document.PageCount == 0) throw new InvalidDataException("O PDF não tem páginas.");
+        using var imageStream = new MemoryStream(png);
+        using var image = XImage.FromStream(imageStream);
+        var page = document.Pages[0]; using var graphics = XGraphics.FromPdfPage(page);
+        var width = Math.Min(page.Width.Point * 0.45, image.PixelWidth);
+        var height = width * image.PixelHeight / image.PixelWidth;
+        graphics.DrawImage(image, page.Width.Point - width - 36, page.Height.Point - height - 36, width, height);
+        var candidate = output; var suffix = 2;
+        while (File.Exists(candidate)) candidate = Path.Combine(Path.GetDirectoryName(output)!, $"{Path.GetFileNameWithoutExtension(output)} ({suffix++}){Path.GetExtension(output)}");
+        document.Save(candidate);
+        return candidate;
+    }
+}

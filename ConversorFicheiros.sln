@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConversorFicheiros", "ConversorFicheiros\ConversorFicheiros.csproj", "{DDABE1A4-D2B1-45D2-BC48-ED809BC5A70D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConversorFicheiros.Tests", "ConversorFicheiros.Tests\ConversorFicheiros.Tests.csproj", "{CF7B1842-BBAC-4EBD-B144-B05633F3CCD6}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DDABE1A4-D2B1-45D2-BC48-ED809BC5A70D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DDABE1A4-D2B1-45D2-BC48-ED809BC5A70D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DDABE1A4-D2B1-45D2-BC48-ED809BC5A70D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DDABE1A4-D2B1-45D2-BC48-ED809BC5A70D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CF7B1842-BBAC-4EBD-B144-B05633F3CCD6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CF7B1842-BBAC-4EBD-B144-B05633F3CCD6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CF7B1842-BBAC-4EBD-B144-B05633F3CCD6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CF7B1842-BBAC-4EBD-B144-B05633F3CCD6}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
