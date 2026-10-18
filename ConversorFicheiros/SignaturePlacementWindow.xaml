@@ -13,8 +13,16 @@
 
         <StackPanel Grid.Row="0" Margin="0,0,0,16">
             <TextBlock Text="Posicione a assinatura" FontSize="24" FontWeight="Bold" Foreground="#172033" />
-            <TextBlock Text="Arraste a assinatura na página. Use o canto azul ou o controlo abaixo para ajustar o tamanho."
+            <TextBlock Text="Escolha a página e arraste a assinatura. Use o canto azul ou o controlo abaixo para ajustar o tamanho."
                        Foreground="#667085" Margin="0,5,0,12" TextWrapping="Wrap" />
+            <DockPanel Margin="0,0,0,12" LastChildFill="False">
+                <TextBlock Text="Página" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="#475467" />
+                <ComboBox x:Name="PageSelector" Width="105" Height="34" VerticalContentAlignment="Center"
+                          SelectionChanged="PageSelector_SelectionChanged" />
+                <TextBlock x:Name="PageCountText" VerticalAlignment="Center" Margin="10,0,0,0" Foreground="#667085" />
+                <TextBlock x:Name="PreviewStatusText" DockPanel.Dock="Right" VerticalAlignment="Center"
+                           Foreground="#667085" />
+            </DockPanel>
             <DockPanel LastChildFill="True">
                 <TextBlock x:Name="SizeText" DockPanel.Dock="Right" Width="64" TextAlignment="Right"
                            VerticalAlignment="Center" Foreground="#475467" />
@@ -53,11 +61,11 @@
         </Border>
 
         <DockPanel Grid.Row="2" Margin="0,16,0,0" LastChildFill="False">
-            <TextBlock Text="A assinatura será aplicada na primeira página. O original não será alterado."
+            <TextBlock Text="A assinatura será aplicada apenas na página selecionada. O original não será alterado."
                        Foreground="#667085" VerticalAlignment="Center" TextWrapping="Wrap" />
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button Content="Cancelar" MinWidth="100" Click="Cancel_Click" />
-                <Button Content="Guardar PDF assinado" MinWidth="170" Background="#315FEA" Foreground="White"
+                <Button x:Name="SaveButton" Content="Guardar PDF assinado" MinWidth="170" Background="#315FEA" Foreground="White"
                         IsDefault="True" Click="Save_Click" />
             </StackPanel>
         </DockPanel>

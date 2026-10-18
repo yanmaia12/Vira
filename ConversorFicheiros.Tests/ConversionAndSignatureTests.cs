@@ -112,7 +112,7 @@ public class ConversionAndSignatureTests
                 Assert.IsTrue(File.Exists(result));
                 using var signed = PdfReader.Open(result, PdfDocumentOpenMode.Import);
                 Assert.AreEqual(1, signed.PageCount);
-                var rendered = PdfPreviewRenderer.RenderFirstPage(result);
+                var rendered = PdfPreviewRenderer.RenderPage(result, 0);
                 Assert.IsTrue(rendered.Png.Length > 100);
             });
         }
@@ -134,10 +134,57 @@ public class ConversionAndSignatureTests
                 document.Save(input);
             });
 
-            var preview = PdfPreviewRenderer.RenderFirstPage(input);
+            var preview = PdfPreviewRenderer.RenderPage(input, 0);
             CollectionAssert.AreEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }, preview.Png.Take(8).ToArray());
             Assert.IsTrue(preview.PageWidthPoints > 0);
             Assert.IsTrue(preview.PageHeightPoints > 0);
+            Assert.AreEqual(0, preview.PageIndex);
+            Assert.AreEqual(1, preview.PageCount);
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    [TestMethod]
+    public void PdfSignatureService_AddsSignatureOnlyToSelectedPage()
+    {
+        var directory = Path.Combine(AppContext.BaseDirectory, "test-artifacts", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var input = Path.Combine(directory, "three-pages.pdf");
+            var output = Path.Combine(directory, "three-pages-signed.pdf");
+            byte[] signature = [];
+            RunSta(() =>
+            {
+                var document = new PdfSharp.Pdf.PdfDocument();
+                for (var i = 0; i < 3; i++) document.AddPage();
+                document.Save(input);
+
+                var pixels = Enumerable.Repeat((byte)255, 40 * 20 * 4).ToArray();
+                for (var i = 0; i < pixels.Length; i += 4)
+                {
+                    pixels[i] = 0;
+                    pixels[i + 1] = 0;
+                    pixels[i + 2] = 255;
+                }
+                var bitmap = BitmapSource.Create(40, 20, 96, 96, PixelFormats.Bgra32, null, pixels, 160);
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                using var image = new MemoryStream();
+                encoder.Save(image);
+                signature = image.ToArray();
+            });
+
+            var page0Before = PdfPreviewRenderer.RenderPage(input, 0);
+            var page2Before = PdfPreviewRenderer.RenderPage(input, 2);
+            PdfSignatureService.AddVisualSignature(input, output, signature, new SignaturePlacement(0.2, 0.3, 0.4), 2);
+
+            using var signed = PdfReader.Open(output, PdfDocumentOpenMode.Import);
+            Assert.AreEqual(3, signed.PageCount);
+            var page0After = PdfPreviewRenderer.RenderPage(output, 0);
+            var page2After = PdfPreviewRenderer.RenderPage(output, 2);
+            CollectionAssert.AreEqual(page0Before.Png, page0After.Png, "A primeira página não deve ser alterada.");
+            CollectionAssert.AreNotEqual(page2Before.Png, page2After.Png, "A página selecionada deve conter a assinatura.");
         }
         finally { Directory.Delete(directory, recursive: true); }
     }

@@ -113,8 +113,8 @@ public partial class MainWindow : Window
             await StopSignatureServerAsync();
             QrPanel.Visibility = Visibility.Collapsed;
             StatusText.Text = "Assinatura recebida. A preparar a pré-visualização…";
-            var preview = await Task.Run(() => PdfPreviewRenderer.RenderFirstPage(dialog.FileName));
-            var placementWindow = new SignaturePlacementWindow(ToBitmap(preview.Png), png, preview.PageWidthPoints, preview.PageHeightPoints) { Owner = this };
+            var preview = await Task.Run(() => PdfPreviewRenderer.RenderPage(dialog.FileName, 0));
+            var placementWindow = new SignaturePlacementWindow(dialog.FileName, preview, png) { Owner = this };
             if (placementWindow.ShowDialog() != true || placementWindow.Placement is null)
             {
                 StatusText.Text = "Operação cancelada. O PDF original foi preservado.";
@@ -123,7 +123,7 @@ public partial class MainWindow : Window
 
             StatusText.Text = "A aplicar a assinatura e a guardar o PDF…";
             var output = Path.Combine(Path.GetDirectoryName(dialog.FileName)!, Path.GetFileNameWithoutExtension(dialog.FileName) + "_assinado.pdf");
-            output = await Task.Run(() => PdfSignatureService.AddVisualSignature(dialog.FileName, output, png, placementWindow.Placement));
+            output = await Task.Run(() => PdfSignatureService.AddVisualSignature(dialog.FileName, output, png, placementWindow.Placement, placementWindow.SelectedPageIndex));
             StatusText.Text = $"PDF assinado guardado em {output}";
             MessageBox.Show(this, $"A assinatura foi aplicada com sucesso.\n\nFicheiro guardado em:\n{output}", "PDF assinado", MessageBoxButton.OK, MessageBoxImage.Information);
         }
@@ -161,28 +161,30 @@ public partial class MainWindow : Window
     }
 }
 
-internal sealed record PdfPagePreview(byte[] Png, double PageWidthPoints, double PageHeightPoints);
+internal sealed record PdfPagePreview(byte[] Png, double PageWidthPoints, double PageHeightPoints, int PageIndex, int PageCount);
 
 internal static class PdfPreviewRenderer
 {
-    public static PdfPagePreview RenderFirstPage(string pdfPath)
+    public static PdfPagePreview RenderPage(string pdfPath, int pageIndex)
     {
         var pageSizes = PdfImageConverter.GetPageSizes(pdfPath);
         if (pageSizes.Count == 0)
-            throw new InvalidDataException("Não foi possível ler a primeira página deste PDF.");
-        var pageSize = pageSizes[0];
+            throw new InvalidDataException("Não foi possível ler as páginas deste PDF.");
+        if (pageIndex < 0 || pageIndex >= pageSizes.Count)
+            throw new ArgumentOutOfRangeException(nameof(pageIndex), "A página selecionada não existe neste PDF.");
+        var pageSize = pageSizes[pageIndex];
         if (pageSize.Width <= 0 || pageSize.Height <= 0)
             throw new InvalidDataException("As dimensões da primeira página deste PDF são inválidas.");
 
         using var session = PdfRenderSession.Open(pdfPath);
         using var image = new MemoryStream();
-        session.SavePage(0, image, new PdfImageConversionOptions
+        session.SavePage(pageIndex, image, new PdfImageConversionOptions
         {
             Format = PdfImageOutputFormat.Png,
             Encoding = PdfImageEncodingOptions.Fast,
             Render = PdfPageRenderOptions.ScreenPreview
         });
-        return new PdfPagePreview(image.ToArray(), pageSize.Width, pageSize.Height);
+        return new PdfPagePreview(image.ToArray(), pageSize.Width, pageSize.Height, pageIndex, pageSizes.Count);
     }
 }
 
@@ -332,13 +334,15 @@ internal sealed class MobileSignatureServer : IAsyncDisposable
 
 internal static class PdfSignatureService
 {
-    public static string AddVisualSignature(string input, string output, byte[] png, SignaturePlacement? placement = null)
+    public static string AddVisualSignature(string input, string output, byte[] png, SignaturePlacement? placement = null, int pageIndex = 0)
     {
         using var document = PdfReader.Open(input, PdfDocumentOpenMode.Modify);
         if (document.PageCount == 0) throw new InvalidDataException("O PDF não tem páginas.");
+        if (pageIndex < 0 || pageIndex >= document.PageCount)
+            throw new ArgumentOutOfRangeException(nameof(pageIndex), "A página selecionada não existe neste PDF.");
         using var imageStream = new MemoryStream(png);
         using var image = XImage.FromStream(imageStream);
-        var page = document.Pages[0]; using var graphics = XGraphics.FromPdfPage(page);
+        var page = document.Pages[pageIndex]; using var graphics = XGraphics.FromPdfPage(page);
         var rectangle = CalculateSignatureRectangle(page.Width.Point, page.Height.Point, image.PixelWidth, image.PixelHeight, placement);
         graphics.DrawImage(image, rectangle.X, rectangle.Y, rectangle.Width, rectangle.Height);
         var candidate = output; var suffix = 2;
