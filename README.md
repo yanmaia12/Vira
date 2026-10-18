@@ -31,7 +31,7 @@ To build a per-user installer on Windows (no administrator privileges required, 
 powershell -ExecutionPolicy Bypass -File installer/Build-Installer.ps1
 ```
 
-The generated `Vira-Setup.exe` in the repository root installs Vira to `%LOCALAPPDATA%\Programs\Vira`, creates Start Menu and Desktop shortcuts, and registers the File Explorer context-menu commands for the current user. After installation, open **Vira** from either shortcut; you do not need to run `dotnet restore` or `dotnet run` again. The installer publishes a self-contained Windows x64 application. Office conversions still require Microsoft Office to be installed.
+The generated `Vira-Setup.exe` in the repository root always contains the application built from the current source. Double-click it and select **Install** to install or update Vira in `%LOCALAPPDATA%\Programs\Vira`. The setup replaces the installed application, creates Start Menu and Desktop shortcuts, and registers the File Explorer context-menu commands for the current user. Close Vira before installing an update. After installation, open **Vira** from either shortcut; you do not need to run `dotnet restore` or `dotnet run` again. The installer publishes a self-contained Windows x64 application. Office conversions still require Microsoft Office to be installed.
 
 To publish the application directly as a self-contained Windows x64 executable:
 

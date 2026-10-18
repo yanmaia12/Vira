@@ -5,76 +5,55 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$projectFile = Join-Path $projectRoot 'ConversorFicheiros\ConversorFicheiros.csproj'
+$appProject = Join-Path $projectRoot 'ConversorFicheiros\ConversorFicheiros.csproj'
+$setupProject = Join-Path $PSScriptRoot 'Setup\Setup.csproj'
 $artifactDirectory = Join-Path $projectRoot 'artifacts\installer'
-$publishDirectory = Join-Path $artifactDirectory "publish\$RuntimeIdentifier"
-$setupFile = Join-Path $artifactDirectory 'Vira-Setup.exe'
-$iexpress = Join-Path $env:WINDIR 'System32\iexpress.exe'
-
-if (-not (Test-Path -LiteralPath $iexpress)) {
-    throw 'O IExpress do Windows nao foi encontrado.'
-}
+$appPublishDirectory = Join-Path $artifactDirectory "publish\$RuntimeIdentifier"
+$setupPublishDirectory = Join-Path $artifactDirectory "setup-publish\$RuntimeIdentifier"
+$setupFile = Join-Path $projectRoot 'Vira-Setup.exe'
+$payloadArchive = Join-Path $artifactDirectory ("Vira-Payload-$([guid]::NewGuid().ToString('N')).zip")
 
 New-Item -ItemType Directory -Path $artifactDirectory -Force | Out-Null
-New-Item -ItemType Directory -Path $publishDirectory -Force | Out-Null
+New-Item -ItemType Directory -Path $appPublishDirectory -Force | Out-Null
+New-Item -ItemType Directory -Path $setupPublishDirectory -Force | Out-Null
 
-dotnet publish $projectFile -c Release -r $RuntimeIdentifier --self-contained true `
+dotnet publish $appProject -c Release -r $RuntimeIdentifier --self-contained true `
     -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
-    -p:DebugType=None -p:DebugSymbols=false -o $publishDirectory
+    -p:DebugType=None -p:DebugSymbols=false -o $appPublishDirectory
 if ($LASTEXITCODE -ne 0) {
-    throw 'A publicacao da aplicacao falhou.'
+    throw 'The Vira application publish failed.'
 }
 
-$executableName = 'ConversorFicheiros.exe'
-Copy-Item -LiteralPath (Join-Path $publishDirectory $executableName) -Destination $artifactDirectory -Force
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Install.cmd') -Destination $artifactDirectory -Force
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Install-Vira.ps1') -Destination $artifactDirectory -Force
-
-$sedFile = Join-Path $artifactDirectory 'Vira-Setup.sed'
-$sed = @"
-[Version]
-Class=IEXPRESS
-SEDVersion=3
-[Options]
-PackagePurpose=InstallApp
-ShowInstallProgramWindow=1
-HideExtractAnimation=1
-UseLongFileName=1
-InsideCompressed=1
-CAB_FixedSize=0
-CAB_ResvCodeSigning=0
-RebootMode=N
-InstallPrompt=%InstallPrompt%
-DisplayLicense=%DisplayLicense%
-FinishMessage=%FinishMessage%
-TargetName=$setupFile
-FriendlyName=Vira - Conversor de Ficheiros
-AppLaunched=Install.cmd
-PostInstallCmd=<None>
-AdminQuietInstCmd=
-UserQuietInstCmd=
-SourceFiles=SourceFiles
-[SourceFiles]
-SourceFiles0=$artifactDirectory
-[SourceFiles0]
-%FILE0%=
-%FILE1%=
-%FILE2%=
-[Strings]
-InstallPrompt=
-DisplayLicense=
-FinishMessage=Instalacao do Vira concluida.
-FILE0=$executableName
-FILE1=Install.cmd
-FILE2=Install-Vira.ps1
-"@
-Set-Content -LiteralPath $sedFile -Value $sed -Encoding Ascii
-
-& $iexpress /N /Q $sedFile
-if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $setupFile)) {
-    throw 'O IExpress nao conseguiu criar o instalador.'
+$appExecutable = Join-Path $appPublishDirectory 'ConversorFicheiros.exe'
+if (-not (Test-Path -LiteralPath $appExecutable)) {
+    throw 'The published Vira application executable was not found.'
 }
 
-Copy-Item -LiteralPath $setupFile -Destination (Join-Path $projectRoot 'Vira-Setup.exe') -Force
-Write-Host "Instalador criado: $setupFile"
-Write-Host "Copia pronta na raiz do repositorio: $(Join-Path $projectRoot 'Vira-Setup.exe')"
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$archive = [System.IO.Compression.ZipFile]::Open($payloadArchive, [System.IO.Compression.ZipArchiveMode]::Create)
+try {
+    $null = [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+        $archive,
+        $appExecutable,
+        'ConversorFicheiros.exe',
+        [System.IO.Compression.CompressionLevel]::Optimal)
+}
+finally {
+    $archive.Dispose()
+}
+
+dotnet publish $setupProject -c Release -r $RuntimeIdentifier --self-contained true `
+    -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+    -p:EnableCompressionInSingleFile=true "-p:ViraPayloadPath=$payloadArchive" `
+    -p:DebugType=None -p:DebugSymbols=false -o $setupPublishDirectory
+if ($LASTEXITCODE -ne 0) {
+    throw 'The Vira setup publish failed.'
+}
+
+$publishedSetup = Join-Path $setupPublishDirectory 'Vira-Setup.exe'
+if (-not (Test-Path -LiteralPath $publishedSetup)) {
+    throw 'The published Vira setup executable was not found.'
+}
+
+Copy-Item -LiteralPath $publishedSetup -Destination $setupFile -Force
+Write-Host "Current setup created: $setupFile"
