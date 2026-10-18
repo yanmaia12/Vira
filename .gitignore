@@ -2,5 +2,6 @@
 **/bin/
 **/obj/
 artifacts/
+/Vira-Setup.exe
 *.user
 *.suo

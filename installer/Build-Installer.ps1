@@ -75,4 +75,6 @@ if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $setupFile)) {
     throw 'O IExpress nao conseguiu criar o instalador.'
 }
 
+Copy-Item -LiteralPath $setupFile -Destination (Join-Path $projectRoot 'Vira-Setup.exe') -Force
 Write-Host "Instalador criado: $setupFile"
+Write-Host "Copia pronta na raiz do repositorio: $(Join-Path $projectRoot 'Vira-Setup.exe')"

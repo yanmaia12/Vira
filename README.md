@@ -30,7 +30,7 @@ Para criar um instalador de utilizador (sem privilégios de administrador e sem 
 powershell -ExecutionPolicy Bypass -File installer/Build-Installer.ps1
 ```
 
-O ficheiro `artifacts/installer/Vira-Setup.exe` instala a aplicação em `%LOCALAPPDATA%\Programs\Vira`, cria atalhos no Menu Iniciar e no Ambiente de Trabalho e regista os comandos do menu de contexto para esse utilizador. Depois da instalação, abra **Vira** pelos atalhos; não precisa executar `dotnet restore` ou `dotnet run` novamente. É uma publicação autónoma para Windows x64. As conversões Office continuam a requerer Microsoft Office instalado.
+O ficheiro `Vira-Setup.exe` (na raiz do repositório) instala a aplicação em `%LOCALAPPDATA%\Programs\Vira`, cria atalhos no Menu Iniciar e no Ambiente de Trabalho e regista os comandos do menu de contexto para esse utilizador. Depois da instalação, abra **Vira** pelos atalhos; não precisa executar `dotnet restore` ou `dotnet run` novamente. É uma publicação autónoma para Windows x64. As conversões Office continuam a requerer Microsoft Office instalado.
 
 Para criar uma publicação autónoma para Windows x64:
 
