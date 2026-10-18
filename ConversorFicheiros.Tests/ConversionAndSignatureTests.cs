@@ -79,6 +79,13 @@ public class ConversionAndSignatureTests
         CollectionAssert.Contains(ConversionCatalog.TargetsFor("report.pdf").ToArray(), "docx");
     }
 
+    [TestMethod]
+    public void MobileAddressSelection_ExcludesRadminVpnAddress()
+    {
+        Assert.IsFalse(MobileSignatureServer.IsPrivateLanAddress(IPAddress.Parse("26.157.241.137")));
+        Assert.IsTrue(MobileSignatureServer.IsPrivateLanAddress(IPAddress.Parse("192.168.1.75")));
+    }
+
     private static void RunSta(Action action)
     {
         Exception? failure = null;

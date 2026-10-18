@@ -237,7 +237,7 @@ internal sealed class MobileSignatureServer : IDisposable, IAsyncDisposable
                     gateway.Address.AddressFamily == AddressFamily.InterNetwork &&
                     !gateway.Address.Equals(IPAddress.Any));
                 return properties.UnicastAddresses
-                    .Where(item => item.Address.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(item.Address))
+                    .Where(item => item.Address.AddressFamily == AddressFamily.InterNetwork && IsPrivateLanAddress(item.Address))
                     .Select(item => (item.Address, HasGateway: hasGateway, AdapterType: adapter.NetworkInterfaceType));
             })
             .OrderByDescending(item => item.HasGateway)
@@ -246,6 +246,16 @@ internal sealed class MobileSignatureServer : IDisposable, IAsyncDisposable
             .FirstOrDefault();
         return address?.ToString() ?? IPAddress.Loopback.ToString();
     }
+
+    internal static bool IsPrivateLanAddress(IPAddress address)
+    {
+        if (address.AddressFamily != AddressFamily.InterNetwork) return false;
+        var bytes = address.GetAddressBytes();
+        return bytes[0] == 10 ||
+               (bytes[0] == 172 && bytes[1] is >= 16 and <= 31) ||
+               (bytes[0] == 192 && bytes[1] == 168);
+    }
+
     public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
     public async ValueTask DisposeAsync()
     {
