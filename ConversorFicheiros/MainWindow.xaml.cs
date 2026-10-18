@@ -104,6 +104,7 @@ public partial class MainWindow : Window
         {
             var session = await _server.StartAsync();
             QrImage.Source = ToBitmap(PngByteQRCodeHelper.GetQRCode(session.Url, QRCodeGenerator.ECCLevel.Q, 8));
+            QrUrlText.Text = session.Url;
             QrPanel.Visibility = Visibility.Visible;
             StatusText.Text = "Leia o QR code na mesma rede Wi-Fi e desenhe a assinatura no telemóvel.";
             var png = await session.SignatureTask;
@@ -227,10 +228,22 @@ internal sealed class MobileSignatureServer : IDisposable, IAsyncDisposable
     private static string GetLocalAddress()
     {
         var address = NetworkInterface.GetAllNetworkInterfaces()
-            .Where(adapter => adapter.OperationalStatus == OperationalStatus.Up && adapter.NetworkInterfaceType != NetworkInterfaceType.Loopback)
-            .SelectMany(adapter => adapter.GetIPProperties().UnicastAddresses)
+            .Where(adapter => adapter.OperationalStatus == OperationalStatus.Up &&
+                              adapter.NetworkInterfaceType is NetworkInterfaceType.Wireless80211 or NetworkInterfaceType.Ethernet)
+            .SelectMany(adapter =>
+            {
+                var properties = adapter.GetIPProperties();
+                var hasGateway = properties.GatewayAddresses.Any(gateway =>
+                    gateway.Address.AddressFamily == AddressFamily.InterNetwork &&
+                    !gateway.Address.Equals(IPAddress.Any));
+                return properties.UnicastAddresses
+                    .Where(item => item.Address.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(item.Address))
+                    .Select(item => (item.Address, HasGateway: hasGateway, AdapterType: adapter.NetworkInterfaceType));
+            })
+            .OrderByDescending(item => item.HasGateway)
+            .ThenBy(item => item.AdapterType == NetworkInterfaceType.Wireless80211 ? 0 : 1)
             .Select(item => item.Address)
-            .FirstOrDefault(item => item.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(item));
+            .FirstOrDefault();
         return address?.ToString() ?? IPAddress.Loopback.ToString();
     }
     public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
@@ -243,7 +256,7 @@ internal sealed class MobileSignatureServer : IDisposable, IAsyncDisposable
     }
 
     private const string MobilePage = """
-<!doctype html><html lang="pt"><meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="utf-8"><title>Assinar PDF</title><style>body{font:17px system-ui;max-width:620px;margin:24px auto;padding:0 16px;background:#f5f6fa;color:#172033}canvas{width:100%;height:260px;background:white;border:2px dashed #8290a6;border-radius:16px;touch-action:none}button{padding:12px 18px;border:0;border-radius:10px;background:#245de8;color:white;font-size:16px;margin:12px 8px 0 0}</style><h1>Desenhe a assinatura</h1><p>A assinatura será enviada diretamente ao computador nesta rede.</p><canvas id="pad" width="1200" height="520"></canvas><br><button onclick="clearPad()">Limpar</button><button onclick="send()">Enviar assinatura</button><p id="status"></p><script>const c=document.querySelector('#pad'),x=c.getContext('2d');x.strokeStyle='#13244a';x.lineWidth=8;x.lineCap='round';let down=false;function pos(e){let r=c.getBoundingClientRect();return[(e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height]}c.onpointerdown=e=>{down=true;c.setPointerCapture(e.pointerId);let p=pos(e);x.beginPath();x.moveTo(...p)};c.onpointermove=e=>{if(down){x.lineTo(...pos(e));x.stroke()}};c.onpointerup=()=>down=false;function clearPad(){x.clearRect(0,0,c.width,c.height)}async function send(){document.querySelector('#status').textContent='A enviar…';let blob=await new Promise(r=>c.toBlob(r,'image/png'));let res=await fetch(location.pathname+'/signature',{method:'POST',headers:{'Content-Type':'image/png'},body:blob});document.querySelector('#status').textContent=await res.text()}</script></html>
+<!doctype html><html lang="pt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="color-scheme" content="light"><title>Assinar PDF</title><style>*{box-sizing:border-box}html,body{min-height:100%;background:#f5f6fa}body{font:17px system-ui,-apple-system,"Segoe UI",sans-serif;max-width:620px;margin:24px auto;padding:0 16px;color:#172033}h1{font-size:26px}canvas{display:block;width:100%;height:260px;background:#fff;border:2px dashed #8290a6;border-radius:16px;touch-action:none}button{padding:12px 18px;border:0;border-radius:10px;background:#245de8;color:#fff;font-size:16px;margin:12px 8px 0 0}#status{min-height:1.5em}</style></head><body><h1>Desenhe a assinatura</h1><p>A assinatura será enviada diretamente ao computador nesta rede.</p><canvas id="pad" width="1200" height="520"></canvas><button onclick="clearPad()">Limpar</button><button onclick="send()">Enviar assinatura</button><p id="status" role="status"></p><script>const c=document.querySelector('#pad'),x=c.getContext('2d');x.strokeStyle='#13244a';x.lineWidth=8;x.lineCap='round';let down=false;function pos(e){let r=c.getBoundingClientRect();return[(e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height]}c.onpointerdown=e=>{down=true;c.setPointerCapture(e.pointerId);let p=pos(e);x.beginPath();x.moveTo(...p)};c.onpointermove=e=>{if(down){x.lineTo(...pos(e));x.stroke()}};c.onpointerup=()=>down=false;c.onpointercancel=()=>down=false;function clearPad(){x.clearRect(0,0,c.width,c.height)}async function send(){const status=document.querySelector('#status');status.textContent='A enviar…';try{let blob=await new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error('Não foi possível gerar a imagem.')),'image/png'));let res=await fetch(location.pathname+'/signature',{method:'POST',headers:{'Content-Type':'image/png'},body:blob});if(!res.ok)throw new Error('O computador recusou a assinatura ('+res.status+').');status.textContent=await res.text()}catch(error){status.textContent='Falha ao enviar. Confirme se o PC continua ligado à mesma rede Wi-Fi. '+error.message}}</script></body></html>
 """;
 }
 

@@ -57,6 +57,12 @@ public class ConversionAndSignatureTests
         var session = await server.StartAsync();
         var uri = new UriBuilder(session.Url) { Host = IPAddress.Loopback.ToString() }.Uri;
         using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+        using var pageResponse = await client.GetAsync(uri);
+        pageResponse.EnsureSuccessStatusCode();
+        var page = await pageResponse.Content.ReadAsStringAsync();
+        StringAssert.Contains(page, "Desenhe a assinatura");
+        StringAssert.Contains(page, "<canvas id=\"pad\"");
+
         var png = new byte[] { 137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3 };
         using var content = new ByteArrayContent(png);
         content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
