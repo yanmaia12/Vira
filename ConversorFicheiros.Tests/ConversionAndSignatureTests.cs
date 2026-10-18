@@ -86,6 +86,37 @@ public class ConversionAndSignatureTests
         Assert.IsTrue(MobileSignatureServer.IsPrivateLanAddress(IPAddress.Parse("192.168.1.75")));
     }
 
+    [TestMethod]
+    public void PdfSignatureService_AddsSignatureAndCreatesOutputPdf()
+    {
+        var directory = Path.Combine(AppContext.BaseDirectory, "test-artifacts", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            RunSta(() =>
+            {
+                var input = Path.Combine(directory, "original.pdf");
+                var output = Path.Combine(directory, "original_assinado.pdf");
+                var pdf = new PdfSharp.Pdf.PdfDocument();
+                pdf.AddPage();
+                pdf.Save(input);
+
+                var bitmap = BitmapSource.Create(2, 2, 96, 96, PixelFormats.Bgra32, null,
+                    new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, 8);
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                using var image = new MemoryStream();
+                encoder.Save(image);
+
+                var result = PdfSignatureService.AddVisualSignature(input, output, image.ToArray());
+                Assert.IsTrue(File.Exists(result));
+                using var signed = PdfReader.Open(result, PdfDocumentOpenMode.Import);
+                Assert.AreEqual(1, signed.PageCount);
+            });
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
     private static void RunSta(Action action)
     {
         Exception? failure = null;

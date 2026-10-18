@@ -108,11 +108,18 @@ public partial class MainWindow : Window
             QrPanel.Visibility = Visibility.Visible;
             StatusText.Text = "Leia o QR code na mesma rede Wi-Fi e desenhe a assinatura no telemóvel.";
             var png = await session.SignatureTask;
+            QrPanel.Visibility = Visibility.Collapsed;
+            StatusText.Text = "Assinatura recebida. A guardar o PDF…";
             var output = Path.Combine(Path.GetDirectoryName(dialog.FileName)!, Path.GetFileNameWithoutExtension(dialog.FileName) + "_assinado.pdf");
             output = await Task.Run(() => PdfSignatureService.AddVisualSignature(dialog.FileName, output, png));
             StatusText.Text = $"PDF assinado guardado em {output}";
+            MessageBox.Show(this, $"A assinatura foi aplicada com sucesso.\n\nFicheiro guardado em:\n{output}", "PDF assinado", MessageBoxButton.OK, MessageBoxImage.Information);
         }
-        catch (Exception ex) { StatusText.Text = $"Erro na assinatura: {ex.Message}"; }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"Erro na assinatura: {ex.Message}";
+            MessageBox.Show(this, $"Não foi possível concluir a assinatura.\n\n{ex.Message}", "Erro ao assinar PDF", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
         finally { QrPanel.Visibility = Visibility.Collapsed; _server?.Dispose(); _server = null; }
     }
 
