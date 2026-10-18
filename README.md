@@ -1,69 +1,69 @@
-# Conversor de Ficheiros
+# Vira — File Converter
 
-Aplicação Windows em C#/.NET para conversão local de documentos Office, PDF e imagens, atalhos no menu de contexto do Explorador e recolha de assinatura visual num PDF através do telemóvel.
+Vira is a Windows desktop application for converting Office documents, PDFs, and images. It adds conversion actions to File Explorer's right-click menu and lets you draw a signature on your phone, send it to your PC with a QR code, and place it on a selected PDF page.
 
-## Ambiente e tecnologias
+## Requirements and technologies
 
-- Windows 10/11, .NET 8 SDK e Windows Desktop Runtime.
-- WPF para a aplicação gráfica.
-- Automação COM do Microsoft Office instalado para preservar o layout dos formatos Word, Excel e PowerPoint.
-- Windows Imaging Component (WIC), através dos encoders/decoders do WPF, para conversão de imagens.
-- PDFiumRaster 2.0.5 (licença MIT) para rasterizar as páginas selecionadas e apresentar a pré-visualização para posicionamento.
-- PDFsharp 6.2.4 (licença MIT) para incorporar a imagem da assinatura no PDF.
-- QRCoder 1.8.0 para gerar o QR code.
-- ASP.NET Core/Kestrel, incluído no runtime .NET, para servir a página de assinatura na rede local.
-- Registo por utilizador (`HKCU`) para atalhos no Explorador; não requer privilégios de administrador.
+- Windows 10 or 11 and the .NET 8 SDK for development.
+- WPF for the desktop interface.
+- Microsoft Office COM automation for Word, Excel, and PowerPoint conversions. The corresponding Office applications must be installed.
+- Windows Imaging Component (WIC), through WPF encoders and decoders, for image conversion.
+- PDFiumRaster 2.0.5 (MIT license) to render selected PDF pages for preview.
+- PDFsharp 6.2.4 (MIT license) to add the signature image to a PDF.
+- QRCoder 1.8.0 to generate QR codes.
+- ASP.NET Core/Kestrel, included in .NET, to serve the mobile signing page over the local network.
+- Per-user File Explorer menu registration (`HKCU`); administrator privileges are not required.
 
-## Executar
+## Run from source
 
-Na pasta do repositório:
+From the repository directory:
 
 ```powershell
 dotnet restore ConversorFicheiros.sln
 dotnet run --project ConversorFicheiros/ConversorFicheiros.csproj
 ```
 
-## Instalar para uso normal
+## Install for everyday use
 
-Para criar um instalador de utilizador (sem privilégios de administrador e sem exigir que o utilizador final tenha .NET instalado), execute no Windows:
+To build a per-user installer on Windows (no administrator privileges required, and end users do not need to install .NET), run:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File installer/Build-Installer.ps1
 ```
 
-O ficheiro `Vira-Setup.exe` (na raiz do repositório) instala a aplicação em `%LOCALAPPDATA%\Programs\Vira`, cria atalhos no Menu Iniciar e no Ambiente de Trabalho e regista os comandos do menu de contexto para esse utilizador. Depois da instalação, abra **Vira** pelos atalhos; não precisa executar `dotnet restore` ou `dotnet run` novamente. É uma publicação autónoma para Windows x64. As conversões Office continuam a requerer Microsoft Office instalado.
+The generated `Vira-Setup.exe` in the repository root installs Vira to `%LOCALAPPDATA%\Programs\Vira`, creates Start Menu and Desktop shortcuts, and registers the File Explorer context-menu commands for the current user. After installation, open **Vira** from either shortcut; you do not need to run `dotnet restore` or `dotnet run` again. The installer publishes a self-contained Windows x64 application. Office conversions still require Microsoft Office to be installed.
 
-Para criar uma publicação autónoma para Windows x64:
+To publish the application directly as a self-contained Windows x64 executable:
 
 ```powershell
 dotnet publish ConversorFicheiros/ConversorFicheiros.csproj -c Release -r win-x64 --self-contained true
 ```
 
-Executar os testes automatizados:
+Run the automated tests with:
 
 ```powershell
 dotnet test ConversorFicheiros.sln
 ```
 
-## Funcionalidades nesta versão
+## Features
 
-- Adicionar múltiplas imagens por seletor de ficheiros ou arrastar para a janela.
-- Converter Word (`DOC`, `DOCX`, `RTF`, `TXT`, `HTML`, `ODT`) para PDF e outros formatos Word suportados pelo Office.
-- Converter PDF para DOCX ou TXT através da importação do PDF pelo Word. A paginação e o layout podem mudar nesta conversão.
-- Converter folhas Excel (`XLS`, `XLSX`, `XLSM`, `CSV`, `ODS`) para PDF, XLSX, XLS ou CSV; e apresentações PowerPoint (`PPT`, `PPTX`, `PPTM`, `ODP`) para PDF, PPTX ou PPT.
-- Converter imagens suportadas pelo WIC para PNG, JPEG, BMP, TIFF ou PDF. Cada frame da imagem fica numa página separada do PDF. O resultado é guardado ao lado do original.
-- No botão **Registar no Explorador**, criar comandos por utilizador para ficheiros Office, PDF e imagem. Não exige administrador. No Windows 11, os comandos podem estar em **Mostrar mais opções**.
-- Selecionar um PDF, ler o QR com um telemóvel na mesma rede Wi-Fi, desenhar a assinatura, escolher a página, posicioná-la e redimensioná-la na pré-visualização e gravar uma cópia `_assinado.pdf`.
-- Evitar substituir ficheiros de saída existentes, acrescentando um sufixo numérico quando necessário.
+- Add multiple files with the file picker or by dragging them into the window.
+- Convert Word files (`DOC`, `DOCX`, `RTF`, `TXT`, `HTML`, `ODT`) to PDF and other Word formats supported by the installed Office version.
+- Convert PDFs to DOCX or TXT by importing them into Word. Pagination and layout may change during conversion.
+- Convert Excel files (`XLS`, `XLSX`, `XLSM`, `CSV`, `ODS`) to PDF, XLSX, XLS, or CSV; convert PowerPoint files (`PPT`, `PPTX`, `PPTM`, `ODP`) to PDF, PPTX, or PPT.
+- Convert WIC-supported images to PNG, JPEG, BMP, TIFF, or PDF. Each image frame becomes a separate PDF page. Output files are saved next to the source files.
+- Register per-user File Explorer context-menu commands for Office documents, PDFs, and images. On Windows 11, these commands may appear under **Show more options**.
+- Select a PDF, scan its QR code with a phone on the same Wi-Fi network, draw a signature, choose a page, position and resize the signature in the preview, and save a `_assinado.pdf` copy.
+- Avoid overwriting existing output files by adding a numeric suffix when needed.
 
-## Assinatura e privacidade
+## Signature and privacy
 
-A assinatura é uma imagem desenhada e incorporada visualmente no PDF. Antes de guardar, é possível escolher a página e arrastar/redimensionar a assinatura nessa página. Não é uma assinatura eletrónica qualificada, não usa certificado e não valida identidade ou integridade criptográfica do documento. A sessão é servida na rede local por HTTP e usa um token aleatório no URL; os dispositivos têm de conseguir comunicar entre si e a firewall do Windows pode pedir autorização para a aplicação. A cópia assinada é criada ao lado do original.
+The drawn signature is an image embedded visually in the PDF. Before saving, choose a page and drag or resize the signature on that page. This is not a qualified electronic signature: it does not use a certificate and does not verify identity or document integrity. The mobile signing session is served over HTTP on the local network and uses a random token in its URL. The phone and PC must be able to communicate, and Windows Firewall may ask for permission to allow the application. The signed copy is created next to the original PDF.
 
-## Limites atuais
+## Current limitations
 
-A conversão de documentos requer Word, Excel ou PowerPoint instalados e depende das versões e filtros disponíveis no Office. Não cobre literalmente todos os formatos existentes, nem converte PDF para Excel/PowerPoint ou formatos multimédia. A assinatura pode ser aplicada a uma única página por operação; seleção de várias páginas, PDFs protegidos ou páginas rodadas ainda não são tratados especialmente. Atalhos registados no Explorador apontam para o executável em execução, por isso devem ser registados novamente depois de mover a publicação.
+Document conversion requires Word, Excel, or PowerPoint and depends on the formats and filters supported by the installed Office version. Vira does not cover every format, and it does not convert PDFs to Excel or PowerPoint or handle multimedia formats. Each signing operation applies the signature to one page. Protected PDFs and rotated pages are not handled specially. File Explorer commands point to the executable that registered them, so register the commands again after moving the application.
 
-## Arquitetura e próximas etapas
+## Architecture and roadmap
 
-Veja [docs/architecture.md](docs/architecture.md) para decisões, componentes e plano faseado. As extensões de formatos devem ser adicionadas como provedores/serviços de conversão independentes; a interface não deve conhecer detalhes específicos de cada biblioteca.
+See [docs/architecture.md](docs/architecture.md) for architecture decisions, components, and implementation milestones. Add new format support through independent conversion providers so the interface does not depend on the details of a particular library.
