@@ -99,7 +99,8 @@ public partial class MainWindow : Window
     {
         var dialog = new OpenFileDialog { Title = "Selecionar PDF", Filter = "Documentos PDF|*.pdf" };
         if (dialog.ShowDialog() != true) return;
-        _server?.Dispose(); _server = new MobileSignatureServer();
+        await StopSignatureServerAsync();
+        _server = new MobileSignatureServer();
         try
         {
             var session = await _server.StartAsync();
@@ -120,7 +121,18 @@ public partial class MainWindow : Window
             StatusText.Text = $"Erro na assinatura: {ex.Message}";
             MessageBox.Show(this, $"Não foi possível concluir a assinatura.\n\n{ex.Message}", "Erro ao assinar PDF", MessageBoxButton.OK, MessageBoxImage.Error);
         }
-        finally { QrPanel.Visibility = Visibility.Collapsed; _server?.Dispose(); _server = null; }
+        finally
+        {
+            QrPanel.Visibility = Visibility.Collapsed;
+            await StopSignatureServerAsync();
+        }
+    }
+
+    private async Task StopSignatureServerAsync()
+    {
+        var server = _server;
+        _server = null;
+        if (server is not null) await server.DisposeAsync();
     }
 
     private static BitmapImage ToBitmap(byte[] bytes)
@@ -129,7 +141,13 @@ public partial class MainWindow : Window
         var bitmap = new BitmapImage(); bitmap.BeginInit(); bitmap.CacheOption = BitmapCacheOption.OnLoad; bitmap.StreamSource = stream; bitmap.EndInit(); bitmap.Freeze(); return bitmap;
     }
 
-    protected override void OnClosed(EventArgs e) { _server?.Dispose(); base.OnClosed(e); }
+    protected override void OnClosed(EventArgs e)
+    {
+        var server = _server;
+        _server = null;
+        if (server is not null) _ = server.DisposeAsync();
+        base.OnClosed(e);
+    }
 }
 
 internal sealed class ImageConversionService
@@ -204,7 +222,7 @@ internal sealed class ExplorerMenuService
     private static void ShellNotifyAssociationChanged() => SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero);
 }
 
-internal sealed class MobileSignatureServer : IDisposable, IAsyncDisposable
+internal sealed class MobileSignatureServer : IAsyncDisposable
 {
     private readonly TaskCompletionSource<byte[]> _signature = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private WebApplication? _app;
@@ -263,7 +281,6 @@ internal sealed class MobileSignatureServer : IDisposable, IAsyncDisposable
                (bytes[0] == 192 && bytes[1] == 168);
     }
 
-    public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
     public async ValueTask DisposeAsync()
     {
         if (_app is null) return;
