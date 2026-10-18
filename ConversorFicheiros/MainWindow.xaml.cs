@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Win32;
 using PdfSharp.Drawing;
 using PdfSharp.Pdf.IO;
+using PdfiumRaster;
 using QRCoder;
 
 namespace ConversorFicheiros;
@@ -109,10 +110,20 @@ public partial class MainWindow : Window
             QrPanel.Visibility = Visibility.Visible;
             StatusText.Text = "Leia o QR code na mesma rede Wi-Fi e desenhe a assinatura no telemóvel.";
             var png = await session.SignatureTask;
+            await StopSignatureServerAsync();
             QrPanel.Visibility = Visibility.Collapsed;
-            StatusText.Text = "Assinatura recebida. A guardar o PDF…";
+            StatusText.Text = "Assinatura recebida. A preparar a pré-visualização…";
+            var preview = await Task.Run(() => PdfPreviewRenderer.RenderFirstPage(dialog.FileName));
+            var placementWindow = new SignaturePlacementWindow(ToBitmap(preview.Png), png, preview.PageWidthPoints, preview.PageHeightPoints) { Owner = this };
+            if (placementWindow.ShowDialog() != true || placementWindow.Placement is null)
+            {
+                StatusText.Text = "Operação cancelada. O PDF original foi preservado.";
+                return;
+            }
+
+            StatusText.Text = "A aplicar a assinatura e a guardar o PDF…";
             var output = Path.Combine(Path.GetDirectoryName(dialog.FileName)!, Path.GetFileNameWithoutExtension(dialog.FileName) + "_assinado.pdf");
-            output = await Task.Run(() => PdfSignatureService.AddVisualSignature(dialog.FileName, output, png));
+            output = await Task.Run(() => PdfSignatureService.AddVisualSignature(dialog.FileName, output, png, placementWindow.Placement));
             StatusText.Text = $"PDF assinado guardado em {output}";
             MessageBox.Show(this, $"A assinatura foi aplicada com sucesso.\n\nFicheiro guardado em:\n{output}", "PDF assinado", MessageBoxButton.OK, MessageBoxImage.Information);
         }
@@ -147,6 +158,31 @@ public partial class MainWindow : Window
         _server = null;
         if (server is not null) _ = server.DisposeAsync();
         base.OnClosed(e);
+    }
+}
+
+internal sealed record PdfPagePreview(byte[] Png, double PageWidthPoints, double PageHeightPoints);
+
+internal static class PdfPreviewRenderer
+{
+    public static PdfPagePreview RenderFirstPage(string pdfPath)
+    {
+        var pageSizes = PdfImageConverter.GetPageSizes(pdfPath);
+        if (pageSizes.Count == 0)
+            throw new InvalidDataException("Não foi possível ler a primeira página deste PDF.");
+        var pageSize = pageSizes[0];
+        if (pageSize.Width <= 0 || pageSize.Height <= 0)
+            throw new InvalidDataException("As dimensões da primeira página deste PDF são inválidas.");
+
+        using var session = PdfRenderSession.Open(pdfPath);
+        using var image = new MemoryStream();
+        session.SavePage(0, image, new PdfImageConversionOptions
+        {
+            Format = PdfImageOutputFormat.Png,
+            Encoding = PdfImageEncodingOptions.Fast,
+            Render = PdfPageRenderOptions.ScreenPreview
+        });
+        return new PdfPagePreview(image.ToArray(), pageSize.Width, pageSize.Height);
     }
 }
 
@@ -296,19 +332,42 @@ internal sealed class MobileSignatureServer : IAsyncDisposable
 
 internal static class PdfSignatureService
 {
-    public static string AddVisualSignature(string input, string output, byte[] png)
+    public static string AddVisualSignature(string input, string output, byte[] png, SignaturePlacement? placement = null)
     {
         using var document = PdfReader.Open(input, PdfDocumentOpenMode.Modify);
         if (document.PageCount == 0) throw new InvalidDataException("O PDF não tem páginas.");
         using var imageStream = new MemoryStream(png);
         using var image = XImage.FromStream(imageStream);
         var page = document.Pages[0]; using var graphics = XGraphics.FromPdfPage(page);
-        var width = Math.Min(page.Width.Point * 0.45, image.PixelWidth);
-        var height = width * image.PixelHeight / image.PixelWidth;
-        graphics.DrawImage(image, page.Width.Point - width - 36, page.Height.Point - height - 36, width, height);
+        var rectangle = CalculateSignatureRectangle(page.Width.Point, page.Height.Point, image.PixelWidth, image.PixelHeight, placement);
+        graphics.DrawImage(image, rectangle.X, rectangle.Y, rectangle.Width, rectangle.Height);
         var candidate = output; var suffix = 2;
         while (File.Exists(candidate)) candidate = Path.Combine(Path.GetDirectoryName(output)!, $"{Path.GetFileNameWithoutExtension(output)} ({suffix++}){Path.GetExtension(output)}");
         document.Save(candidate);
         return candidate;
     }
+
+    internal static SignatureRectangle CalculateSignatureRectangle(double pageWidth, double pageHeight, int imageWidth, int imageHeight, SignaturePlacement? placement)
+    {
+        var aspectRatio = (double)imageWidth / imageHeight;
+        double width, x, y;
+        if (placement is null)
+        {
+            width = Math.Min(pageWidth * 0.45, imageWidth);
+            var height = width / aspectRatio;
+            return new SignatureRectangle(pageWidth - width - 36, pageHeight - height - 36, width, height);
+        }
+
+        var widthRatio = Math.Clamp(placement.Width, 0.05, 0.8);
+        width = pageWidth * widthRatio;
+        var maxHeight = pageHeight * 0.8;
+        if (width / aspectRatio > maxHeight) width = maxHeight * aspectRatio;
+        var actualWidthRatio = width / pageWidth;
+        x = Math.Clamp(placement.X, 0, 1 - actualWidthRatio) * pageWidth;
+        y = Math.Clamp(placement.Y, 0, 1 - (width / aspectRatio) / pageHeight) * pageHeight;
+        return new SignatureRectangle(x, y, width, width / aspectRatio);
+    }
 }
+
+internal sealed record SignaturePlacement(double X, double Y, double Width);
+internal readonly record struct SignatureRectangle(double X, double Y, double Width, double Height);

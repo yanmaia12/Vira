@@ -10,7 +10,7 @@ O ambiente de desenvolvimento tem Windows x64, SDK .NET 8.0.403, runtimes .NET 6
 2. **Serviços isolados por responsabilidade:** `FileConversionService`, `ConversionCatalog`, `OfficeConversionService`, `ImageConversionService`, `ExplorerMenuService`, `MobileSignatureServer` e `PdfSignatureService` separam a UI dos provedores.
 3. **Office via COM para documentos:** usa Word, Excel e PowerPoint já instalados no PC para renderização e conversão local, sem enviar ficheiros a serviços externos. A automação corre numa thread STA.
 4. **WIC e PDFsharp para imagens:** usa os codecs do Windows e PDFsharp para gerar PDFs multipágina a partir de frames de imagem.
-5. **PDFsharp para assinatura visual:** dependência MIT adequada para incorporar a imagem no PDF. A operação é explicitamente visual, não criptográfica.
+5. **PDFiumRaster para pré-visualização e PDFsharp para escrita:** PDFium rasteriza a primeira página para a interface; PDFsharp continua a incorporar a imagem de assinatura na página. As coordenadas e a largura são guardadas como proporções da página, permitindo arrastar e redimensionar sem depender do zoom da pré-visualização. A assinatura permanece explicitamente visual, não criptográfica.
 6. **Página de assinatura local via Kestrel:** evita carregar o documento para um serviço externo. O QR contém endereço local e token aleatório; o upload é limitado a 5 MB e só aceita `image/png`.
 7. **Contexto estático por utilizador:** comandos `HKCU\\Software\\Classes\\SystemFileAssociations` para extensões Office, PDF e imagem, sem elevação. No Windows 11, verbos estáticos podem ficar em "Mostrar mais opções".
 
@@ -22,7 +22,8 @@ O ambiente de desenvolvimento tem Windows x64, SDK .NET 8.0.403, runtimes .NET 6
 - [x] Integrar Word/Excel/PowerPoint via COM para conversões Office comuns, incluindo DOCX→PDF e PDF→DOCX.
 - [x] Criar fluxo QR, página de assinatura móvel e incorporação visual num PDF.
 - [x] Acrescentar testes automatizados da conversão WIC, validação de formatos e ciclo HTTP.
-- [ ] Adicionar pré-visualização e escolha de página/posição da assinatura, além de tratamento de PDFs protegidos.
+- [x] Adicionar pré-visualização da primeira página e escolha visual da posição e tamanho da assinatura.
+- [ ] Adicionar seleção de página e tratamento de PDFs protegidos/rodados.
 - [ ] Avaliar provedores para formatos não cobertos por Office/WIC, como EPUB e áudio/vídeo, mantendo licenças e distribuição offline explícitas.
 - [ ] Preparar instalador e desinstalação limpa dos atalhos do Explorador.
 

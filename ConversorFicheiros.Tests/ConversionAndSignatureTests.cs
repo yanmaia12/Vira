@@ -108,13 +108,50 @@ public class ConversionAndSignatureTests
                 using var image = new MemoryStream();
                 encoder.Save(image);
 
-                var result = PdfSignatureService.AddVisualSignature(input, output, image.ToArray());
+                var result = PdfSignatureService.AddVisualSignature(input, output, image.ToArray(), new SignaturePlacement(0.2, 0.3, 0.4));
                 Assert.IsTrue(File.Exists(result));
                 using var signed = PdfReader.Open(result, PdfDocumentOpenMode.Import);
                 Assert.AreEqual(1, signed.PageCount);
+                var rendered = PdfPreviewRenderer.RenderFirstPage(result);
+                Assert.IsTrue(rendered.Png.Length > 100);
             });
         }
         finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    [TestMethod]
+    public void PdfPreviewRenderer_RendersFirstPageForPlacement()
+    {
+        var directory = Path.Combine(AppContext.BaseDirectory, "test-artifacts", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var input = Path.Combine(directory, "preview-source.pdf");
+            RunSta(() =>
+            {
+                var document = new PdfSharp.Pdf.PdfDocument();
+                document.AddPage();
+                document.Save(input);
+            });
+
+            var preview = PdfPreviewRenderer.RenderFirstPage(input);
+            CollectionAssert.AreEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }, preview.Png.Take(8).ToArray());
+            Assert.IsTrue(preview.PageWidthPoints > 0);
+            Assert.IsTrue(preview.PageHeightPoints > 0);
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    [TestMethod]
+    public void SignaturePlacement_MapsPreviewCoordinatesToPdfPoints()
+    {
+        var rectangle = PdfSignatureService.CalculateSignatureRectangle(612, 792, 1200, 520,
+            new SignaturePlacement(0.2, 0.3, 0.4));
+
+        Assert.AreEqual(122.4, rectangle.X, 0.01);
+        Assert.AreEqual(237.6, rectangle.Y, 0.01);
+        Assert.AreEqual(244.8, rectangle.Width, 0.01);
+        Assert.AreEqual(106.08, rectangle.Height, 0.01);
     }
 
     private static void RunSta(Action action)

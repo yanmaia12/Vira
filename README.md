@@ -8,6 +8,7 @@ Aplicação Windows em C#/.NET para conversão local de documentos Office, PDF e
 - WPF para a aplicação gráfica.
 - Automação COM do Microsoft Office instalado para preservar o layout dos formatos Word, Excel e PowerPoint.
 - Windows Imaging Component (WIC), através dos encoders/decoders do WPF, para conversão de imagens.
+- PDFiumRaster 2.0.5 (licença MIT) para rasterizar a primeira página e apresentar a pré-visualização para posicionamento.
 - PDFsharp 6.2.4 (licença MIT) para incorporar a imagem da assinatura no PDF.
 - QRCoder 1.8.0 para gerar o QR code.
 - ASP.NET Core/Kestrel, incluído no runtime .NET, para servir a página de assinatura na rede local.
@@ -52,12 +53,12 @@ dotnet test ConversorFicheiros.sln
 - Converter folhas Excel (`XLS`, `XLSX`, `XLSM`, `CSV`, `ODS`) para PDF, XLSX, XLS ou CSV; e apresentações PowerPoint (`PPT`, `PPTX`, `PPTM`, `ODP`) para PDF, PPTX ou PPT.
 - Converter imagens suportadas pelo WIC para PNG, JPEG, BMP, TIFF ou PDF. Cada frame da imagem fica numa página separada do PDF. O resultado é guardado ao lado do original.
 - No botão **Registar no Explorador**, criar comandos por utilizador para ficheiros Office, PDF e imagem. Não exige administrador. No Windows 11, os comandos podem estar em **Mostrar mais opções**.
-- Selecionar um PDF, ler o QR com um telemóvel na mesma rede Wi-Fi, desenhar a assinatura e gravar uma cópia `_assinado.pdf` com a imagem na primeira página.
+- Selecionar um PDF, ler o QR com um telemóvel na mesma rede Wi-Fi, desenhar a assinatura, posicioná-la e redimensioná-la numa pré-visualização da primeira página e gravar uma cópia `_assinado.pdf`.
 - Evitar substituir ficheiros de saída existentes, acrescentando um sufixo numérico quando necessário.
 
 ## Assinatura e privacidade
 
-A assinatura é uma imagem desenhada e incorporada visualmente no PDF. Não é uma assinatura eletrónica qualificada, não usa certificado e não valida identidade ou integridade criptográfica do documento. A sessão é servida na rede local por HTTP e usa um token aleatório no URL; os dispositivos têm de conseguir comunicar entre si e a firewall do Windows pode pedir autorização para a aplicação. A cópia assinada é criada ao lado do original.
+A assinatura é uma imagem desenhada e incorporada visualmente no PDF. Antes de guardar, a pré-visualização da primeira página permite arrastar e redimensionar a imagem. Não é uma assinatura eletrónica qualificada, não usa certificado e não valida identidade ou integridade criptográfica do documento. A sessão é servida na rede local por HTTP e usa um token aleatório no URL; os dispositivos têm de conseguir comunicar entre si e a firewall do Windows pode pedir autorização para a aplicação. A cópia assinada é criada ao lado do original.
 
 ## Limites atuais
 
