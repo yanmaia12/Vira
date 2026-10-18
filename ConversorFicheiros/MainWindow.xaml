@@ -1,12 +1,137 @@
-<Window x:Class="ConversorFicheiros.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Conversor de Ficheiros" Height="760" Width="1000" MinHeight="650" MinWidth="820" WindowStartupLocation="CenterScreen" Background="#F4F6FB" AllowDrop="True" DragOver="DropTarget_DragOver" Drop="DropTarget_Drop">
-<Grid Margin="28"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-<StackPanel><TextBlock Text="Conversor de Ficheiros" FontSize="30" FontWeight="Bold" Foreground="#172033"/><TextBlock Text="Word, Excel, PowerPoint, PDF e imagens, com conversão local." FontSize="15" Foreground="#667085" Margin="0,6,0,22"/></StackPanel>
-<Grid Grid.Row="1"><Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="18"/><ColumnDefinition Width="1.15*"/></Grid.ColumnDefinitions>
-<Border Grid.Column="0" Background="White" CornerRadius="18" Padding="22" BorderBrush="#E2E7F0" BorderThickness="1"><DockPanel>
-<StackPanel DockPanel.Dock="Top"><TextBlock Text="Converter ficheiros" FontSize="20" FontWeight="Bold"/><TextBlock Text="DOCX → PDF, PDF → DOCX e conversões Office comuns. Arraste ou escolha ficheiros." TextWrapping="Wrap" Foreground="#667085" Margin="0,5,0,16"/><StackPanel Orientation="Horizontal" Margin="0,0,0,16"><Button Content="Adicionar ficheiros" Background="#315FEA" Foreground="White" Click="AddFiles_Click"/><TextBlock Text="Destino" VerticalAlignment="Center" Margin="16,0,8,0"/><ComboBox x:Name="TargetFormat" Width="110" Padding="8"/></StackPanel></StackPanel>
-<ListBox x:Name="FileList" Background="#F8F9FC" BorderBrush="#E6EAF1" AllowDrop="True"/><StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0"><Button Content="Limpar lista" Click="Clear_Click"/><Button x:Name="ConvertButton" Content="Converter" Background="#315FEA" Foreground="White" Click="Convert_Click"/></StackPanel>
-</DockPanel></Border>
-<StackPanel Grid.Column="2"><Border Background="White" CornerRadius="18" Padding="22" BorderBrush="#E2E7F0" BorderThickness="1"><StackPanel><TextBlock Text="Assinar PDF" FontSize="20" FontWeight="Bold"/><TextBlock Text="Desenhe a assinatura no telemóvel e receba-a no PC através de um QR code." TextWrapping="Wrap" Foreground="#667085" Margin="0,8,0,14"/><Button Content="Iniciar assinatura por QR" Background="#14233D" Foreground="White" Click="SignPdf_Click"/></StackPanel></Border>
-<Border x:Name="QrPanel" Visibility="Collapsed" Background="White" CornerRadius="18" Padding="18" Margin="0,16,0,0" BorderBrush="#E2E7F0" BorderThickness="1"><StackPanel><TextBlock Text="Leia com o telemóvel" FontWeight="Bold" FontSize="16" HorizontalAlignment="Center"/><Image x:Name="QrImage" Width="210" Height="210" Margin="0,12"/><TextBlock Text="Ou abra este endereço no telemóvel:" TextWrapping="Wrap" TextAlignment="Center" Foreground="#667085"/><TextBlock x:Name="QrUrlText" TextWrapping="Wrap" TextAlignment="Center" Foreground="#245DE8" FontWeight="SemiBold" Margin="0,4,0,8"/><TextBlock Text="O PC e o telemóvel têm de estar na mesma rede Wi-Fi. Se não abrir, verifique a firewall do Windows." TextWrapping="Wrap" TextAlignment="Center" Foreground="#667085"/></StackPanel></Border>
-<Border Background="#EAF0FF" CornerRadius="18" Padding="18" Margin="0,16,0,0"><StackPanel><TextBlock Text="Menu de contexto" FontWeight="Bold" FontSize="16"/><TextBlock Text="Regista conversões para Word, Excel, PowerPoint, PDF e imagens. No Windows 11, use Mostrar mais opções." TextWrapping="Wrap" Foreground="#53617A" Margin="0,6,0,8"/><Button Content="Registar no Explorador" Background="White" Foreground="#244EC8" Click="ContextMenu_Click"/></StackPanel></Border></StackPanel></Grid>
-<Border Grid.Row="2" Background="White" CornerRadius="12" Padding="12" Margin="0,16,0,0"><TextBlock x:Name="StatusText" Text="Pronto. Arraste ficheiros para a janela para começar." Foreground="#475467"/></Border></Grid></Window>
+<Window x:Class="ConversorFicheiros.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Vira — Conversor de Ficheiros"
+        Height="760" Width="1060" MinHeight="650" MinWidth="860"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource CanvasBrush}"
+        AllowDrop="True" DragOver="DropTarget_DragOver" Drop="DropTarget_Drop">
+    <Grid Margin="28">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Margin="0,0,0,22">
+            <DockPanel LastChildFill="False">
+                <Border Background="{StaticResource AccentSoftBrush}" CornerRadius="12" Padding="10,5" VerticalAlignment="Center">
+                    <TextBlock Text="VIRA" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentTextBrush}" />
+                </Border>
+                <TextBlock Text="Conversor de Ficheiros" Style="{StaticResource PageTitleStyle}" Margin="12,0,0,0" VerticalAlignment="Center" />
+            </DockPanel>
+            <TextBlock Text="Converta documentos e assine PDFs num só lugar."
+                       Style="{StaticResource BodyTextStyle}" Margin="0,6,0,0" />
+        </StackPanel>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.8*" />
+                <ColumnDefinition Width="18" />
+                <ColumnDefinition Width="1.1*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Style="{StaticResource CardStyle}">
+                <DockPanel LastChildFill="True">
+                    <StackPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+                        <TextBlock Text="Converter ficheiros" Style="{StaticResource SectionTitleStyle}" />
+                        <TextBlock Text="Adicione os ficheiros e escolha um formato de destino compatível."
+                                   Style="{StaticResource BodyTextStyle}" Margin="0,5,0,16" TextWrapping="Wrap" />
+                        <WrapPanel VerticalAlignment="Center">
+                            <Button Content="Adicionar ficheiros" Style="{StaticResource PrimaryButtonStyle}"
+                                    Click="AddFiles_Click" Margin="0,0,16,0" />
+                            <TextBlock Text="Formato de destino" VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <ComboBox x:Name="TargetFormat" Width="125" />
+                        </WrapPanel>
+                    </StackPanel>
+
+                    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+                        <Button Content="Limpar lista" Style="{StaticResource QuietButtonStyle}"
+                                Click="Clear_Click" Margin="0,0,8,0" />
+                        <Button x:Name="ConvertButton" Content="Converter" Style="{StaticResource PrimaryButtonStyle}"
+                                Click="Convert_Click" />
+                    </StackPanel>
+
+                    <Grid>
+                        <ListBox x:Name="FileList" AllowDrop="True"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Converter={StaticResource FileNameConverter}}"
+                                               ToolTip="{Binding}" TextTrimming="CharacterEllipsis" />
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <Border Background="{StaticResource SurfaceBrush}" Opacity="0.96"
+                                CornerRadius="8" Margin="12" IsHitTestVisible="False">
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="20">
+                                <TextBlock Text="Arraste ficheiros para aqui" FontSize="16" FontWeight="SemiBold"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Text="ou use Adicionar ficheiros para começar."
+                                           Style="{StaticResource CaptionTextStyle}" Margin="0,6,0,0"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ElementName=FileList, Path=HasItems}" Value="False">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                        </Border>
+                    </Grid>
+                </DockPanel>
+            </Border>
+
+            <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel>
+                <Border Style="{StaticResource CardStyle}">
+                    <StackPanel>
+                        <TextBlock Text="Assinar PDF" Style="{StaticResource SectionTitleStyle}" />
+                        <TextBlock Text="Desenhe a assinatura no telemóvel e envie-a para o computador através de um QR code."
+                                   Style="{StaticResource BodyTextStyle}" Margin="0,8,0,16" TextWrapping="Wrap" />
+                        <Button Content="Iniciar assinatura por QR" Style="{StaticResource PrimaryButtonStyle}"
+                                Click="SignPdf_Click" HorizontalAlignment="Left" />
+                    </StackPanel>
+                </Border>
+
+                <Border x:Name="QrPanel" Visibility="Collapsed" Style="{StaticResource CardStyle}" Margin="0,14,0,0">
+                    <StackPanel>
+                        <TextBlock Text="Leia com o telemóvel" Style="{StaticResource CardTitleStyle}"
+                                   HorizontalAlignment="Center" />
+                        <Image x:Name="QrImage" Width="210" Height="210" Margin="0,12" />
+                        <TextBlock Text="Ou abra este endereço no telemóvel:" Style="{StaticResource CaptionTextStyle}"
+                                   TextAlignment="Center" TextWrapping="Wrap" />
+                        <TextBlock x:Name="QrUrlText" TextWrapping="Wrap" TextAlignment="Center"
+                                   Foreground="{StaticResource AccentTextBrush}" FontWeight="SemiBold" Margin="0,4,0,8" />
+                        <TextBlock Text="O PC e o telemóvel têm de estar na mesma rede Wi-Fi. Se não abrir, verifique a firewall do Windows."
+                                   Style="{StaticResource CaptionTextStyle}" TextWrapping="Wrap" TextAlignment="Center" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource SubtleCardStyle}" Margin="0,14,0,0">
+                    <StackPanel>
+                        <TextBlock Text="Menu do Explorador" Style="{StaticResource CardTitleStyle}" />
+                        <TextBlock Text="Converta formatos compatíveis a partir do botão direito do rato. No Windows 11, procure em Mostrar mais opções."
+                                   Style="{StaticResource BodyTextStyle}" Margin="0,6,0,12" TextWrapping="Wrap" />
+                        <Button Content="Registar no Explorador" Style="{StaticResource SecondaryButtonStyle}"
+                                Foreground="{StaticResource AccentTextBrush}" Click="ContextMenu_Click"
+                                HorizontalAlignment="Left" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <Border Grid.Row="2" Background="{StaticResource SurfaceBrush}" CornerRadius="10"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Padding="12" Margin="0,16,0,0">
+            <DockPanel LastChildFill="True">
+                <TextBlock x:Name="StatusText" Text="Pronto. Arraste ficheiros para a janela para começar."
+                           Style="{StaticResource CaptionTextStyle}" VerticalAlignment="Center" />
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>

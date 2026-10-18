@@ -31,7 +31,7 @@ To build a per-user installer on Windows (no administrator privileges required, 
 powershell -ExecutionPolicy Bypass -File installer/Build-Installer.ps1
 ```
 
-The generated `Vira-Setup.exe` in the repository root always contains the application built from the current source. Double-click it and select **Install** to install or update Vira in `%LOCALAPPDATA%\Programs\Vira`. The setup replaces the installed application, creates Start Menu and Desktop shortcuts, and registers the File Explorer context-menu commands for the current user. Close Vira before installing an update. After installation, open **Vira** from either shortcut; you do not need to run `dotnet restore` or `dotnet run` again. The installer publishes a self-contained Windows x64 application. Office conversions still require Microsoft Office to be installed.
+The generated `Vira-Setup.exe` in the repository root always contains the application built from the current source. The build also creates `artifacts/distribution/Vira-Windows-x64.zip`, ready to share or attach to a GitHub release. Extract the ZIP, double-click `Vira-Setup.exe`, and select **Install** to install or update Vira in `%LOCALAPPDATA%\Programs\Vira`. The setup replaces the installed application, creates Start Menu and Desktop shortcuts, and registers the File Explorer context-menu commands for the current user. Close Vira before installing an update. After installation, open **Vira** from either shortcut; you do not need to run `dotnet restore` or `dotnet run` again. The installer publishes a self-contained Windows x64 application. Office conversions still require Microsoft Office to be installed.
 
 To publish the application directly as a self-contained Windows x64 executable:
 
@@ -67,3 +67,5 @@ Document conversion requires Word, Excel, or PowerPoint and depends on the forma
 ## Architecture and roadmap
 
 See [docs/architecture.md](docs/architecture.md) for architecture decisions, components, and implementation milestones. Add new format support through independent conversion providers so the interface does not depend on the details of a particular library.
+
+See [DESIGN.md](DESIGN.md) for the visual system used by the WPF desktop interface.

@@ -11,11 +11,15 @@ $artifactDirectory = Join-Path $projectRoot 'artifacts\installer'
 $appPublishDirectory = Join-Path $artifactDirectory "publish\$RuntimeIdentifier"
 $setupPublishDirectory = Join-Path $artifactDirectory "setup-publish\$RuntimeIdentifier"
 $setupFile = Join-Path $projectRoot 'Vira-Setup.exe'
+$distributionDirectory = Join-Path $projectRoot 'artifacts\distribution'
+$packageStagingDirectory = Join-Path $distributionDirectory 'package'
+$packageArchive = Join-Path $distributionDirectory 'Vira-Windows-x64.zip'
 $payloadArchive = Join-Path $artifactDirectory ("Vira-Payload-$([guid]::NewGuid().ToString('N')).zip")
 
 New-Item -ItemType Directory -Path $artifactDirectory -Force | Out-Null
 New-Item -ItemType Directory -Path $appPublishDirectory -Force | Out-Null
 New-Item -ItemType Directory -Path $setupPublishDirectory -Force | Out-Null
+New-Item -ItemType Directory -Path $packageStagingDirectory -Force | Out-Null
 
 dotnet publish $appProject -c Release -r $RuntimeIdentifier --self-contained true `
     -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
@@ -56,4 +60,10 @@ if (-not (Test-Path -LiteralPath $publishedSetup)) {
 }
 
 Copy-Item -LiteralPath $publishedSetup -Destination $setupFile -Force
+Copy-Item -LiteralPath $setupFile -Destination (Join-Path $packageStagingDirectory 'Vira-Setup.exe') -Force
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Setup\README-INSTALL.txt') `
+    -Destination (Join-Path $packageStagingDirectory 'README-INSTALL.txt') -Force
+Compress-Archive -Path (Join-Path $packageStagingDirectory '*') -DestinationPath $packageArchive `
+    -CompressionLevel Optimal -Force
 Write-Host "Current setup created: $setupFile"
+Write-Host "Ready-to-share package created: $packageArchive"

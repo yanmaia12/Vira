@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:primitives="clr-namespace:System.Windows.Controls.Primitives;assembly=PresentationFramework"
         Title="Posicionar assinatura" Height="840" Width="980" MinHeight="650" MinWidth="760"
-        WindowStartupLocation="CenterOwner" Background="#F4F6FB" ResizeMode="CanResize">
+        WindowStartupLocation="CenterOwner" Background="{StaticResource CanvasBrush}" ResizeMode="CanResize">
     <Grid Margin="24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -12,43 +12,74 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Margin="0,0,0,16">
-            <TextBlock Text="Posicione a assinatura" FontSize="24" FontWeight="Bold" Foreground="#172033" />
-            <TextBlock Text="Escolha a página e arraste a assinatura. Use o canto azul ou o controlo abaixo para ajustar o tamanho."
-                       Foreground="#667085" Margin="0,5,0,12" TextWrapping="Wrap" />
-            <DockPanel Margin="0,0,0,12" LastChildFill="False">
-                <TextBlock Text="Página" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="#475467" />
-                <ComboBox x:Name="PageSelector" Width="105" Height="34" VerticalContentAlignment="Center"
-                          SelectionChanged="PageSelector_SelectionChanged" />
-                <TextBlock x:Name="PageCountText" VerticalAlignment="Center" Margin="10,0,0,0" Foreground="#667085" />
-                <TextBlock x:Name="PreviewStatusText" DockPanel.Dock="Right" VerticalAlignment="Center"
-                           Foreground="#667085" />
-            </DockPanel>
-            <DockPanel LastChildFill="True">
-                <TextBlock x:Name="SizeText" DockPanel.Dock="Right" Width="64" TextAlignment="Right"
-                           VerticalAlignment="Center" Foreground="#475467" />
-                <TextBlock Text="Tamanho" DockPanel.Dock="Left" Margin="0,0,12,0"
-                           VerticalAlignment="Center" Foreground="#475467" />
-                <Slider x:Name="SizeSlider" Minimum="8" Maximum="70" Value="32" TickFrequency="1"
-                        IsMoveToPointEnabled="True" ValueChanged="SizeSlider_ValueChanged" />
-            </DockPanel>
+            <TextBlock Text="Posicione a assinatura" Style="{StaticResource PageTitleStyle}" FontSize="26" />
+            <TextBlock Text="Escolha a página e ajuste a assinatura na pré-visualização."
+                       Style="{StaticResource BodyTextStyle}" Margin="0,5,0,14" TextWrapping="Wrap" />
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="220" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1" CornerRadius="10" Padding="12">
+                    <StackPanel>
+                        <TextBlock Text="Página do documento" Style="{StaticResource CaptionTextStyle}" Margin="0,0,0,6" />
+                        <DockPanel LastChildFill="False">
+                            <ComboBox x:Name="PageSelector" Width="100" Height="40"
+                                      SelectionChanged="PageSelector_SelectionChanged" />
+                            <TextBlock x:Name="PageCountText" Margin="10,0,0,0" VerticalAlignment="Center"
+                                       Style="{StaticResource BodyTextStyle}" />
+                        </DockPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="2" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1" CornerRadius="10" Padding="12">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <DockPanel LastChildFill="True">
+                            <TextBlock x:Name="SizeText" DockPanel.Dock="Right" Width="64" TextAlignment="Right"
+                                       VerticalAlignment="Center" Style="{StaticResource CaptionTextStyle}" />
+                            <TextBlock Text="Tamanho da assinatura" VerticalAlignment="Center"
+                                       Style="{StaticResource CaptionTextStyle}" />
+                        </DockPanel>
+                        <Slider x:Name="SizeSlider" Grid.Row="1" Minimum="8" Maximum="70" Value="32"
+                                TickFrequency="1" Margin="0,10,0,0"
+                                ValueChanged="SizeSlider_ValueChanged" />
+                    </Grid>
+                </Border>
+            </Grid>
+            <TextBlock x:Name="PreviewStatusText" Style="{StaticResource CaptionTextStyle}"
+                       Foreground="{StaticResource WarningBrush}" Margin="2,8,0,0" />
         </StackPanel>
 
-        <Border Grid.Row="1" Background="#E8ECF3" CornerRadius="14" Padding="12" BorderBrush="#D7DDE8" BorderThickness="1">
+        <Border Grid.Row="1" Background="{StaticResource PreviewSurfaceBrush}" CornerRadius="14"
+                Padding="12" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
             <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                 <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <Grid x:Name="PageCanvas" Background="White" ClipToBounds="True">
+                    <Grid x:Name="PageCanvas" Background="{StaticResource SurfaceBrush}" ClipToBounds="True">
                         <Image x:Name="PdfPreviewImage" Stretch="Fill" IsHitTestVisible="False" />
                         <Canvas x:Name="PlacementCanvas" Background="Transparent">
-                            <Border x:Name="SignatureBounds" BorderBrush="#315FEA" BorderThickness="1"
-                                    Background="#01FFFFFF" Cursor="SizeAll" MouseLeftButtonDown="SignatureBounds_MouseLeftButtonDown"
-                                    MouseMove="SignatureBounds_MouseMove" MouseLeftButtonUp="SignatureBounds_MouseLeftButtonUp">
+                            <Border x:Name="SignatureBounds" BorderBrush="{StaticResource AccentBrush}" BorderThickness="1"
+                                    Background="#01FFFFFF" Cursor="SizeAll"
+                                    MouseLeftButtonDown="SignatureBounds_MouseLeftButtonDown"
+                                    MouseMove="SignatureBounds_MouseMove"
+                                    MouseLeftButtonUp="SignatureBounds_MouseLeftButtonUp">
                                 <Grid>
                                     <Image x:Name="SignatureImage" Stretch="Fill" IsHitTestVisible="False" />
-                                    <primitives:Thumb x:Name="ResizeThumb" Width="16" Height="16" HorizontalAlignment="Right"
-                                                      VerticalAlignment="Bottom" Cursor="SizeNWSE" DragDelta="ResizeThumb_DragDelta">
+                                    <primitives:Thumb x:Name="ResizeThumb" Width="18" Height="18"
+                                                      HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                                      Cursor="SizeNWSE" DragDelta="ResizeThumb_DragDelta">
                                         <primitives:Thumb.Template>
                                             <ControlTemplate TargetType="primitives:Thumb">
-                                                <Border Background="#315FEA" BorderBrush="White" BorderThickness="1" CornerRadius="3" />
+                                                <Border Background="{StaticResource AccentBrush}" BorderBrush="White"
+                                                        BorderThickness="2" CornerRadius="4" />
                                             </ControlTemplate>
                                         </primitives:Thumb.Template>
                                     </primitives:Thumb>
@@ -60,14 +91,18 @@
             </ScrollViewer>
         </Border>
 
-        <DockPanel Grid.Row="2" Margin="0,16,0,0" LastChildFill="False">
-            <TextBlock Text="A assinatura será aplicada apenas na página selecionada. O original não será alterado."
-                       Foreground="#667085" VerticalAlignment="Center" TextWrapping="Wrap" />
-            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="Cancelar" MinWidth="100" Click="Cancel_Click" />
-                <Button x:Name="SaveButton" Content="Guardar PDF assinado" MinWidth="170" Background="#315FEA" Foreground="White"
-                        IsDefault="True" Click="Save_Click" />
-            </StackPanel>
-        </DockPanel>
+        <Border Grid.Row="2" Style="{StaticResource CardStyle}" Margin="0,16,0,0" Padding="12,10">
+            <DockPanel LastChildFill="False">
+                <TextBlock Text="A assinatura será aplicada apenas na página selecionada. O original não será alterado."
+                           Style="{StaticResource CaptionTextStyle}" VerticalAlignment="Center"
+                           TextWrapping="Wrap" MaxWidth="440" />
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="Cancelar" MinWidth="100" Style="{StaticResource QuietButtonStyle}"
+                            Click="Cancel_Click" Margin="0,0,8,0" />
+                    <Button x:Name="SaveButton" Content="Guardar PDF assinado" MinWidth="170"
+                            Style="{StaticResource PrimaryButtonStyle}" IsDefault="True" Click="Save_Click" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
     </Grid>
 </Window>
