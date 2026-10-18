@@ -66,6 +66,13 @@ public class ConversionAndSignatureTests
         CollectionAssert.AreEqual(png, await session.SignatureTask.WaitAsync(TimeSpan.FromSeconds(3)));
     }
 
+    [TestMethod]
+    public void Catalog_OffersWordToPdfAndPdfToDocx()
+    {
+        CollectionAssert.Contains(ConversionCatalog.TargetsFor("report.docx").ToArray(), "pdf");
+        CollectionAssert.Contains(ConversionCatalog.TargetsFor("report.pdf").ToArray(), "docx");
+    }
+
     private static void RunSta(Action action)
     {
         Exception? failure = null;

@@ -1,11 +1,12 @@
 # Conversor de Ficheiros
 
-Aplicação Windows em C#/.NET para conversão local de imagens, atalhos de conversão no menu de contexto do Explorador e recolha de assinatura visual num PDF através do telemóvel.
+Aplicação Windows em C#/.NET para conversão local de documentos Office, PDF e imagens, atalhos no menu de contexto do Explorador e recolha de assinatura visual num PDF através do telemóvel.
 
 ## Ambiente e tecnologias
 
 - Windows 10/11, .NET 8 SDK e Windows Desktop Runtime.
 - WPF para a aplicação gráfica.
+- Automação COM do Microsoft Office instalado para preservar o layout dos formatos Word, Excel e PowerPoint.
 - Windows Imaging Component (WIC), através dos encoders/decoders do WPF, para conversão de imagens.
 - PDFsharp 6.2.4 (licença MIT) para incorporar a imagem da assinatura no PDF.
 - QRCoder 1.8.0 para gerar o QR code.
@@ -36,8 +37,11 @@ dotnet test ConversorFicheiros.sln
 ## Funcionalidades nesta versão
 
 - Adicionar múltiplas imagens por seletor de ficheiros ou arrastar para a janela.
+- Converter Word (`DOC`, `DOCX`, `RTF`, `TXT`, `HTML`, `ODT`) para PDF e outros formatos Word suportados pelo Office.
+- Converter PDF para DOCX ou TXT através da importação do PDF pelo Word. A paginação e o layout podem mudar nesta conversão.
+- Converter folhas Excel (`XLS`, `XLSX`, `XLSM`, `CSV`, `ODS`) para PDF, XLSX, XLS ou CSV; e apresentações PowerPoint (`PPT`, `PPTX`, `PPTM`, `ODP`) para PDF, PPTX ou PPT.
 - Converter imagens suportadas pelo WIC para PNG, JPEG, BMP, TIFF ou PDF. Cada frame da imagem fica numa página separada do PDF. O resultado é guardado ao lado do original.
-- No botão **Adicionar ao Explorador**, criar comandos de contexto por utilizador para as extensões de imagem suportadas. A ação não instala shell extensions nem exige administrador.
+- No botão **Registar no Explorador**, criar comandos por utilizador para ficheiros Office, PDF e imagem. Não exige administrador. No Windows 11, os comandos podem estar em **Mostrar mais opções**.
 - Selecionar um PDF, ler o QR com um telemóvel na mesma rede Wi-Fi, desenhar a assinatura e gravar uma cópia `_assinado.pdf` com a imagem na primeira página.
 - Evitar substituir ficheiros de saída existentes, acrescentando um sufixo numérico quando necessário.
 
@@ -47,7 +51,7 @@ A assinatura é uma imagem desenhada e incorporada visualmente no PDF. Não é u
 
 ## Limites atuais
 
-A conversão está limitada a imagens descodificadas pelo WIC, incluindo criação de PDF a partir de imagens. Ainda não converte documentos Office, áudio/vídeo ou PDF para imagens/outros formatos. A assinatura é posicionada no canto inferior direito da primeira página; não há ainda pré-visualização, seleção de página ou posicionamento. Atalhos registados no Explorador apontam para o executável em execução, por isso devem ser registados novamente depois de mover a publicação.
+A conversão de documentos requer Word, Excel ou PowerPoint instalados e depende das versões e filtros disponíveis no Office. Não cobre literalmente todos os formatos existentes, nem converte PDF para Excel/PowerPoint ou formatos multimédia. A assinatura é posicionada no canto inferior direito da primeira página; não há ainda pré-visualização, seleção de página ou posicionamento. Atalhos registados no Explorador apontam para o executável em execução, por isso devem ser registados novamente depois de mover a publicação.
 
 ## Arquitetura e próximas etapas
 

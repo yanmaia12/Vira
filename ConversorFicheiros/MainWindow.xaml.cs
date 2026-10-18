@@ -17,7 +17,7 @@ namespace ConversorFicheiros;
 
 public partial class MainWindow : Window
 {
-    private readonly ImageConversionService _converter = new();
+    private readonly FileConversionService _converter = new();
     private MobileSignatureServer? _server;
 
     public MainWindow()
@@ -26,9 +26,9 @@ public partial class MainWindow : Window
         var args = Environment.GetCommandLineArgs().Skip(1).ToArray();
         if (args.Length >= 3 && args[0] == "--convert")
         {
-            FileList.Items.Add(args[1]);
+            AddFiles([args[1]]);
             TargetFormat.SelectedItem = TargetFormat.Items.Cast<System.Windows.Controls.ComboBoxItem>()
-                .FirstOrDefault(item => string.Equals(item.Content?.ToString(), args[2], StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefault(item => string.Equals(item.Content?.ToString()?.TrimStart('.'), args[2].TrimStart('.'), StringComparison.OrdinalIgnoreCase));
             Dispatcher.BeginInvoke(async () => await ConvertFilesAsync());
         }
     }
@@ -42,7 +42,24 @@ public partial class MainWindow : Window
     private void AddFiles(IEnumerable<string> paths)
     {
         foreach (var path in paths.Where(File.Exists)) if (!FileList.Items.Contains(path)) FileList.Items.Add(path);
+        UpdateTargetFormats();
         StatusText.Text = $"{FileList.Items.Count} ficheiro(s) na lista";
+    }
+
+    private void UpdateTargetFormats()
+    {
+        var selected = (TargetFormat.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString();
+        var files = FileList.Items.Cast<string>().ToArray();
+        var targets = files.Length == 0
+            ? Array.Empty<string>()
+            : files.Select(ConversionCatalog.TargetsFor).Aggregate((left, right) => left.Intersect(right, StringComparer.OrdinalIgnoreCase).ToArray());
+        TargetFormat.Items.Clear();
+        foreach (var target in targets)
+            TargetFormat.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = $".{target}" });
+        TargetFormat.SelectedItem = TargetFormat.Items.Cast<System.Windows.Controls.ComboBoxItem>()
+            .FirstOrDefault(item => string.Equals(item.Content?.ToString(), selected, StringComparison.OrdinalIgnoreCase))
+            ?? TargetFormat.Items.Cast<System.Windows.Controls.ComboBoxItem>().FirstOrDefault();
+        ConvertButton.IsEnabled = TargetFormat.SelectedItem is not null;
     }
 
     private void DropTarget_DragOver(object sender, DragEventArgs e) => e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;
@@ -52,7 +69,8 @@ public partial class MainWindow : Window
     private async Task ConvertFilesAsync()
     {
         if (FileList.Items.Count == 0) { StatusText.Text = "Adicione ficheiros para converter."; return; }
-        var format = (TargetFormat.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "png";
+        var format = (TargetFormat.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString();
+        if (format is null) { StatusText.Text = "Não há um formato de destino em comum para os ficheiros escolhidos."; return; }
         ConvertButton.IsEnabled = false;
         var successes = 0; var total = FileList.Items.Count;
         foreach (string input in FileList.Items)
@@ -64,7 +82,7 @@ public partial class MainWindow : Window
         if (successes > 0) StatusText.Text = $"Concluído: {successes} de {total} ficheiro(s).";
     }
 
-    private void Clear_Click(object sender, RoutedEventArgs e) { FileList.Items.Clear(); StatusText.Text = "Lista limpa."; }
+    private void Clear_Click(object sender, RoutedEventArgs e) { FileList.Items.Clear(); UpdateTargetFormats(); StatusText.Text = "Lista limpa."; }
 
     private void ContextMenu_Click(object sender, RoutedEventArgs e)
     {
@@ -72,7 +90,7 @@ public partial class MainWindow : Window
         {
             var exe = Environment.ProcessPath ?? throw new InvalidOperationException("Não foi possível localizar o executável.");
             new ExplorerMenuService().Register(exe);
-            StatusText.Text = "Atalhos registados no Explorador do Windows.";
+            StatusText.Text = "Atalhos de documentos e imagens registados no Explorador. No Windows 11, procure-os em Mostrar mais opções.";
         }
         catch (Exception ex) { StatusText.Text = $"Não foi possível registar o menu: {ex.Message}"; }
     }
@@ -161,16 +179,21 @@ internal sealed class ExplorerMenuService
 {
     public void Register(string executable)
     {
-        var formats = new[] { ("png", "PNG"), ("jpg", "JPEG"), ("bmp", "BMP"), ("tiff", "TIFF"), ("pdf", "PDF") };
-        var extensions = new[] { ".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff" };
-        foreach (var ext in extensions)
-        foreach (var (format, label) in formats)
+        if (!File.Exists(executable)) throw new FileNotFoundException("Executável da aplicação não encontrado.", executable);
+        foreach (var ext in ConversionCatalog.RegisteredInputs)
+        foreach (var format in ConversionCatalog.TargetsFor("ficheiro" + ext))
         {
             using var key = Registry.CurrentUser.CreateSubKey($@"Software\Classes\SystemFileAssociations\{ext}\shell\ConversorFicheiros.{format}");
-            key!.SetValue(null, $"Converter para {label}"); key.SetValue("Icon", executable);
+            key!.SetValue(null, $"Converter para {format.ToUpperInvariant()}"); key.SetValue("Icon", executable);
             using var command = key.CreateSubKey("command"); command!.SetValue(null, $"\"{executable}\" --convert \"%1\" {format}");
         }
+        ShellNotifyAssociationChanged();
     }
+
+    [System.Runtime.InteropServices.DllImport("shell32.dll")]
+    private static extern void SHChangeNotify(uint eventId, uint flags, IntPtr item1, IntPtr item2);
+
+    private static void ShellNotifyAssociationChanged() => SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero);
 }
 
 internal sealed class MobileSignatureServer : IDisposable, IAsyncDisposable
