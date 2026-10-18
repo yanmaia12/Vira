@@ -1,5 +1,6 @@
 .dotnet-cli/
 **/bin/
 **/obj/
+artifacts/
 *.user
 *.suo
